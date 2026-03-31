@@ -11,36 +11,7 @@ export async function initializeDatabase() {
   // db.pragma('foreign_keys = ON');
 console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
   
-  // Ensure table columns exist (Alter Table if necessary)
-  const tables = ['customers', 'sales', 'cash_registers'];
-  for (const table of tables) {
-    const columns = db.prepare(`PRAGMA table_info(${table})`).all().map(col => (col as any).name);
-    
-    if (table === 'customers' && !columns.includes('outstanding_balance')) {
-      console.log('🔄 Adding outstanding_balance to customers...');
-      db.exec('ALTER TABLE customers ADD COLUMN outstanding_balance REAL DEFAULT 0');
-    }
-    
-    if (table === 'sales') {
-      if (!columns.includes('credit_amount')) {
-        console.log('🔄 Adding credit_amount to sales...');
-        db.exec('ALTER TABLE sales ADD COLUMN credit_amount REAL DEFAULT 0');
-      }
-      if (!columns.includes('bill_number')) {
-        console.log('🔄 Adding bill_number to sales...');
-        db.exec('ALTER TABLE sales ADD COLUMN bill_number TEXT');
-      }
-      if (!columns.includes('notes')) {
-        console.log('🔄 Adding notes to sales...');
-        db.exec('ALTER TABLE sales ADD COLUMN notes TEXT');
-      }
-    }
-    
-    if (table === 'cash_registers' && !columns.includes('total_credit_sales')) {
-      console.log('🔄 Adding total_credit_sales to cash_registers...');
-      db.exec('ALTER TABLE cash_registers ADD COLUMN total_credit_sales REAL DEFAULT 0');
-    }
-  }
+
 
   console.log('🔄 Creating database tables...');
 
@@ -697,6 +668,37 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
     }
   } catch (e) {
     console.error('Migration error for label_templates:', e);
+  }
+
+  // Ensure table columns exist (Alter Table if necessary)
+  const migrationTables = ['customers', 'sales', 'cash_registers'];
+  for (const table of migrationTables) {
+    const columns = db.prepare(`PRAGMA table_info(${table})`).all().map(col => (col as any).name);
+    
+    if (table === 'customers' && columns.length > 0 && !columns.includes('outstanding_balance')) {
+      console.log('🔄 Adding outstanding_balance to customers...');
+      db.exec('ALTER TABLE customers ADD COLUMN outstanding_balance REAL DEFAULT 0');
+    }
+    
+    if (table === 'sales' && columns.length > 0) {
+      if (!columns.includes('credit_amount')) {
+        console.log('🔄 Adding credit_amount to sales...');
+        db.exec('ALTER TABLE sales ADD COLUMN credit_amount REAL DEFAULT 0');
+      }
+      if (!columns.includes('bill_number')) {
+        console.log('🔄 Adding bill_number to sales...');
+        db.exec('ALTER TABLE sales ADD COLUMN bill_number TEXT');
+      }
+      if (!columns.includes('notes')) {
+        console.log('🔄 Adding notes to sales...');
+        db.exec('ALTER TABLE sales ADD COLUMN notes TEXT');
+      }
+    }
+    
+    if (table === 'cash_registers' && columns.length > 0 && !columns.includes('total_credit_sales')) {
+      console.log('🔄 Adding total_credit_sales to cash_registers...');
+      db.exec('ALTER TABLE cash_registers ADD COLUMN total_credit_sales REAL DEFAULT 0');
+    }
   }
 
   console.log('✅ All tables created successfully');

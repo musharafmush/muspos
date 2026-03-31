@@ -295,8 +295,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-/* [DIAGNOSTIC CUT START]
-/* [DIAGNOSTIC BLOCK 1]
+
   // Categories API
   app.get('/api/categories', async (req, res) => {
     try {
@@ -7137,11 +7136,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: `Failed to fetch recent registers: ${error.message}` });
     }
   });
-/* [DIAGNOSTIC BLOCK 1 END] */
+
 
   // Create HTTP server
   const httpServer = createServer(app);
-/* [DIAGNOSTIC BLOCK 2 START]
+
   // Inventory Adjustments API
   app.get('/api/inventory-adjustments', async (req, res) => {
     try {
@@ -9005,6 +9004,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-[DIAGNOSTIC BLOCK 2 END] */
+
   return httpServer;
 }
