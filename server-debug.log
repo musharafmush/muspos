@@ -2274,3 +2274,30 @@
 [2026-03-31T16:33:59.412Z] 🎉 Database initialization completed successfully!
 [2026-03-31T16:33:59.413Z] ✅ Database initialized successfully
 [2026-03-31T16:33:59.618Z] 5:33:59 PM [express] serving on port 5004
+[2026-03-31T16:40:56.700Z] 🚩 Checkpoint M0: sqlite-migrate.ts starting execution
+[2026-03-31T16:40:56.701Z] 🚩 Checkpoint M_LOADED: sqlite-migrate.ts finished loading
+[2026-03-31T16:40:56.709Z] 🚩 Checkpoint 1: Express initialized
+[2026-03-31T16:40:56.716Z] 🚩 Checkpoint 2: Middleware configured
+[2026-03-31T16:40:56.717Z] 🚩 Checkpoint 3: Entering async block
+[2026-03-31T16:40:56.719Z] 🔄 Initializing database...
+[2026-03-31T16:40:56.726Z] 🚩 Checkpoint M0: Pragma skipped in migrations
+[2026-03-31T16:40:56.735Z] 🔄 Creating database tables...
+[2026-03-31T16:40:56.738Z] ✅ All tables created successfully
+[2026-03-31T16:40:56.741Z] 🔄 Verifying stock_quantity affinity...
+[2026-03-31T16:40:56.748Z] 🎉 Database initialization completed successfully!
+[2026-03-31T16:40:56.749Z] ✅ Database initialized successfully
+[2026-03-31T16:40:56.753Z] ERROR: ❌ Failed to start server:
+[2026-03-31T16:40:56.760Z] ERROR: Stack:
+[2026-03-31T16:41:15.544Z] 🚩 Checkpoint M0: sqlite-migrate.ts starting execution
+[2026-03-31T16:41:15.545Z] 🚩 Checkpoint M_LOADED: sqlite-migrate.ts finished loading
+[2026-03-31T16:41:15.551Z] 🚩 Checkpoint 1: Express initialized
+[2026-03-31T16:41:15.556Z] 🚩 Checkpoint 2: Middleware configured
+[2026-03-31T16:41:15.557Z] 🚩 Checkpoint 3: Entering async block
+[2026-03-31T16:41:15.559Z] 🔄 Initializing database...
+[2026-03-31T16:41:15.564Z] 🚩 Checkpoint M0: Pragma skipped in migrations
+[2026-03-31T16:41:15.571Z] 🔄 Creating database tables...
+[2026-03-31T16:41:15.581Z] ✅ All tables created successfully
+[2026-03-31T16:41:15.582Z] 🔄 Verifying stock_quantity affinity...
+[2026-03-31T16:41:15.586Z] 🎉 Database initialization completed successfully!
+[2026-03-31T16:41:15.587Z] ✅ Database initialized successfully
+[2026-03-31T16:41:15.721Z] 5:41:15 PM [express] serving on port 5004
