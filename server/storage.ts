@@ -109,6 +109,7 @@ import fs from 'fs';
 import path from 'path';
 
 
+console.log('🚩 Checkpoint S1.1: Starting to define massive storage object...');
 export const storage = {
   latestBackupPath: null as string | null,
 
@@ -6604,4 +6605,5 @@ export const storage = {
     }
   }
 };
+console.log('🚩 Checkpoint S1.2: storage object successfully defined!');
 
