@@ -1,3 +1,4 @@
+console.log('🚩 Checkpoint PG_SCHEMA: schema.ts starting execution');
 import { pgTable, text, serial, integer, boolean, timestamp, decimal, pgEnum } from 'drizzle-orm/pg-core';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 import { relations } from 'drizzle-orm';
