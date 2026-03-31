@@ -7,7 +7,8 @@ const dbPath = path.join(process.cwd(), 'pos-data.db');
 export async function initializeDatabase() {
   const db = new Database(dbPath);
 
-  db.pragma('foreign_keys = ON');
+  // db.pragma('foreign_keys = ON');
+console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
   
   // Ensure table columns exist (Alter Table if necessary)
   const tables = ['customers', 'sales', 'cash_registers'];

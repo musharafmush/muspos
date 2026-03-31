@@ -2147,3 +2147,19 @@
 [2026-03-31T16:14:56.994Z] 🎉 Database initialization completed successfully!
 [2026-03-31T16:14:56.995Z] ✅ Database initialized successfully
 [2026-03-31T16:14:57.177Z] 5:14:57 PM [express] serving on port 5004
+[2026-03-31T16:17:10.338Z] 🚩 Checkpoint M0: Pragma skipped in migrations
+[2026-03-31T16:17:10.343Z] 🔄 Creating database tables...
+[2026-03-31T16:17:10.347Z] ✅ All tables created successfully
+[2026-03-31T16:17:10.348Z] 🔄 Verifying stock_quantity affinity...
+[2026-03-31T16:17:10.353Z] 🎉 Database initialization completed successfully!
+[2026-03-31T16:17:10.360Z] 🚩 Checkpoint 1: Express initialized
+[2026-03-31T16:17:10.365Z] 🚩 Checkpoint 2: Middleware configured
+[2026-03-31T16:17:10.369Z] 🚩 Checkpoint 3: Entering async block
+[2026-03-31T16:17:10.372Z] 🔄 Initializing database...
+[2026-03-31T16:17:10.375Z] 🚩 Checkpoint M0: Pragma skipped in migrations
+[2026-03-31T16:17:10.380Z] 🔄 Creating database tables...
+[2026-03-31T16:17:10.383Z] ✅ All tables created successfully
+[2026-03-31T16:17:10.383Z] 🔄 Verifying stock_quantity affinity...
+[2026-03-31T16:17:10.386Z] 🎉 Database initialization completed successfully!
+[2026-03-31T16:17:10.386Z] ✅ Database initialized successfully
+[2026-03-31T16:17:10.563Z] 5:17:10 PM [express] serving on port 5004
