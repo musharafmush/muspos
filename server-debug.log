@@ -2222,3 +2222,16 @@
 [2026-03-31T16:23:57.779Z] 🎉 Database initialization completed successfully!
 [2026-03-31T16:23:57.780Z] ✅ Database initialized successfully
 [2026-03-31T16:23:57.969Z] 5:23:57 PM [express] serving on port 5004
+[2026-03-31T16:27:55.485Z] 🚩 Checkpoint M0: sqlite-migrate.ts starting execution
+[2026-03-31T16:27:55.486Z] 🚩 Checkpoint M_LOADED: sqlite-migrate.ts finished loading
+[2026-03-31T16:27:55.492Z] 🚩 Checkpoint 1: Express initialized
+[2026-03-31T16:27:55.499Z] 🚩 Checkpoint 2: Middleware configured
+[2026-03-31T16:27:55.500Z] 🚩 Checkpoint 3: Entering async block
+[2026-03-31T16:27:55.501Z] 🔄 Initializing database...
+[2026-03-31T16:27:55.503Z] 🚩 Checkpoint M0: Pragma skipped in migrations
+[2026-03-31T16:27:55.509Z] 🔄 Creating database tables...
+[2026-03-31T16:27:55.514Z] ✅ All tables created successfully
+[2026-03-31T16:27:55.515Z] 🔄 Verifying stock_quantity affinity...
+[2026-03-31T16:27:55.518Z] 🎉 Database initialization completed successfully!
+[2026-03-31T16:27:55.519Z] ✅ Database initialized successfully
+[2026-03-31T16:27:55.732Z] 5:27:55 PM [express] serving on port 5004
