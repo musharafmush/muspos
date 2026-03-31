@@ -1,0 +1,1529 @@
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from "wouter";
+import { DashboardLayout } from "@/components/layout/dashboard-layout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { 
+  PackageIcon,
+  TrendingUpIcon,
+  BarChart3Icon,
+  Search,
+  RefreshCw,
+  Filter,
+  Calendar,
+  PlusIcon,
+  EyeIcon,
+  EditIcon,
+  Package,
+  Plus,
+  Trash,
+  ShoppingCart,
+  Star,
+  AlertTriangle,
+  Check,
+  X,
+  MoreHorizontalIcon,
+  CopyIcon,
+  ArchiveIcon,
+  Trash2,
+  Eye,
+  Edit,
+  DownloadIcon,
+  SettingsIcon
+} from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+
+type Product = {
+  id: number;
+  name: string;
+  sku: string;
+  description?: string;
+  price: number;
+  cost: number;
+  mrp: number;
+  wholesalePrice?: number;
+  stockQuantity: number;
+  alertThreshold?: number;
+  weight?: number;
+  weightUnit?: string;
+  categoryId: number;
+  active: boolean;
+  weightInGms?: number;
+};
+
+export default function RepackingDashboardProfessional() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [dateFilter, setDateFilter] = useState<string>("all");
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  // Repack dialog removed - now redirects to dedicated repack page
+  const [isRepackDialogOpen, setIsRepackDialogOpen] = useState(false); // Unused - kept for compatibility
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  // Bulk product selection removed - handled in dedicated repack page
+  const [selectedBulkProduct, setSelectedBulkProduct] = useState<any>(null); // Unused - kept for compatibility
+  const [repackFormData, setRepackFormData] = useState({
+    sourceQuantity: "1",
+    sourceUnit: "kg",
+    targetQuantity: "8",
+    unitWeight: "250",
+    unitWeightUnit: "g",
+    targetName: "",
+    targetSku: "",
+    sellingPrice: "",
+    costPrice: "",
+    mrp: "",
+    customWeight: "",
+    customWeightUnit: "g",
+    selectedPresetWeight: "250",
+    marginPercentage: "15",
+    mrpMarginPercentage: "25"
+  });
+  const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
+  const [selectAll, setSelectAll] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    sku: "",
+    description: "",
+    price: "",
+    cost: "",
+    stockQuantity: "",
+    weight: "",
+    weightUnit: "g",
+    alertThreshold: ""
+  });
+
+  // Fetch products with React Query
+  const { data: products, isLoading: isProductsLoading } = useQuery({
+    queryKey: ["/api/products"],
+  });
+
+  // Type-safe products array  
+  const productsArray = Array.isArray(products) ? (products as Product[]) : [];
+
+  // Unit conversion functions
+  const convertToGrams = (value: number, unit: string): number => {
+    return unit === 'kg' ? value * 1000 : value;
+  };
+
+  const convertFromGrams = (value: number, unit: string): number => {
+    return unit === 'kg' ? value / 1000 : value;
+  };
+
+  const formatWeightDisplay = (value: number, unit: string): string => {
+    if (unit === 'kg') {
+      return value >= 1 ? `${value}kg` : `${value * 1000}g`;
+    }
+    return value >= 1000 ? `${(value / 1000).toFixed(1)}kg` : `${value}g`;
+  };
+
+  // Dynamic calculation functions for smart repacking
+  const calculateQuantityFromWeight = (originalWeight: number, targetWeight: number) => {
+    return Math.floor(originalWeight / targetWeight);
+  };
+
+  const calculatePriceFromWeight = (originalPrice: number, originalWeight: number, targetWeight: number, marginPercentage: number = 15) => {
+    const weightRatio = targetWeight / originalWeight;
+    const basePrice = originalPrice * weightRatio;
+    return (basePrice * (1 + marginPercentage / 100)).toFixed(2);
+  };
+
+  const recalculateRepackData = (weight: string, unit: string = 'g', isCustom: boolean = false) => {
+    if (!selectedBulkProduct) return;
+
+    const targetWeightInput = parseFloat(weight);
+    const targetWeight = convertToGrams(targetWeightInput, unit);
+    
+    // Get source bulk weight with unit conversion
+    const sourceQuantity = parseFloat(repackFormData.sourceQuantity);
+    const sourceBulkWeight = convertToGrams(sourceQuantity, repackFormData.sourceUnit);
+    
+    const basePrice = parseFloat(selectedBulkProduct.price.toString());
+    const baseCost = parseFloat(selectedBulkProduct.cost.toString());
+    const marginPercent = parseFloat(repackFormData.marginPercentage);
+    const mrpMarginPercent = parseFloat(repackFormData.mrpMarginPercentage);
+    
+    const suggestedQuantity = calculateQuantityFromWeight(sourceBulkWeight, targetWeight);
+    const weightRatio = targetWeight / sourceBulkWeight;
+    
+    const unitCostPrice = (baseCost * weightRatio).toFixed(2);
+    const unitSellingPrice = calculatePriceFromWeight(basePrice, sourceBulkWeight, targetWeight, marginPercent);
+    const unitMrp = calculatePriceFromWeight(basePrice, sourceBulkWeight, targetWeight, mrpMarginPercent);
+
+    // Generate new SKU and name with proper unit display
+    const timestamp = Date.now();
+    const cleanName = selectedBulkProduct.name.replace(/\b(bulk|BULK|Bulk)\b/gi, '').trim();
+    const displayWeight = formatWeightDisplay(targetWeightInput, unit);
+    const targetName = `${cleanName} (${displayWeight} Pack)`;
+    const baseSku = selectedBulkProduct.sku.replace(/[^A-Z0-9]/gi, '').substring(0, 10);
+    const unitSuffix = unit === 'kg' ? 'KG' : 'G';
+    const targetSku = `${baseSku}-RP${targetWeightInput}${unitSuffix}-${timestamp.toString().slice(-6)}`;
+
+    setRepackFormData(prev => ({
+      ...prev,
+      unitWeight: weight,
+      unitWeightUnit: unit,
+      targetQuantity: suggestedQuantity.toString(),
+      sellingPrice: unitSellingPrice,
+      costPrice: unitCostPrice,
+      mrp: unitMrp,
+      targetName,
+      targetSku,
+      selectedPresetWeight: isCustom ? "" : weight,
+      customWeight: isCustom ? weight : "",
+      customWeightUnit: isCustom ? unit : prev.customWeightUnit
+    }));
+  };
+
+  // Enhanced preset weight options with kg/g units
+  const presetWeights = [
+    { value: "100", unit: "g", label: "100g", display: "100g" },
+    { value: "200", unit: "g", label: "200g", display: "200g" },
+    { value: "250", unit: "g", label: "250g", display: "250g" },
+    { value: "300", unit: "g", label: "300g", display: "300g" },
+    { value: "400", unit: "g", label: "400g", display: "400g" },
+    { value: "500", unit: "g", label: "500g", display: "500g" },
+    { value: "600", unit: "g", label: "600g", display: "600g" },
+    { value: "700", unit: "g", label: "700g", display: "700g" },
+    { value: "800", unit: "g", label: "800g", display: "800g" },
+    { value: "900", unit: "g", label: "900g", display: "900g" },
+    { value: "1", unit: "kg", label: "1kg", display: "1 kg" },
+    { value: "1.5", unit: "kg", label: "1.5kg", display: "1.5 kg" },
+    { value: "2", unit: "kg", label: "2kg", display: "2 kg" },
+    { value: "2.5", unit: "kg", label: "2.5kg", display: "2.5 kg" },
+    { value: "5", unit: "kg", label: "5kg", display: "5 kg" },
+    { value: "10", unit: "kg", label: "10kg", display: "10 kg" }
+  ];
+
+  const handleWeightChangeWithCalculation = (weight: string, isPreset: boolean, unit: string = 'g') => {
+    if (isPreset) {
+      setRepackFormData(prev => ({
+        ...prev,
+        unitWeight: weight,
+        unitWeightUnit: unit,
+        selectedPresetWeight: weight,
+        customWeight: "",
+        customWeightUnit: unit
+      }));
+    } else {
+      setRepackFormData(prev => ({
+        ...prev,
+        customWeight: weight,
+        customWeightUnit: unit,
+        unitWeight: weight,
+        unitWeightUnit: unit,
+        selectedPresetWeight: ""
+      }));
+    }
+    recalculateRepackData(weight, unit, !isPreset);
+  };
+
+  // Using products query defined above
+
+  // Filter bulk products (products suitable for repacking)
+  const bulkProducts = productsArray.filter((product: Product) => {
+    const isBulk = product.name.toLowerCase().includes('bulk') || 
+                   (product.weight && product.weight > 1000) ||
+                   product.stockQuantity > 50;
+    return isBulk && product.active;
+  });
+
+  // Filter repacked products (products created from repacking)
+  const repackedProducts = productsArray.filter((product: Product) => {
+    const isRepacked = product.sku.includes('-RP') || 
+                       product.name.includes('Pack)') ||
+                       product.description?.includes('repacked');
+    return isRepacked && product.active;
+  });
+
+  // Filter functions for display
+  const filteredBulkProducts = bulkProducts.filter((product: Product) => {
+    const matchesSearch = searchTerm === "" || 
+      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.sku.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === "all" || 
+      (statusFilter === "active" && product.active) ||
+      (statusFilter === "low-stock" && product.stockQuantity <= (product.alertThreshold || 10));
+
+    return matchesSearch && matchesStatus;
+  });
+
+  const filteredRepackedProducts = repackedProducts.filter((product: Product) => {
+    const matchesSearch = searchTerm === "" || 
+      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.sku.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === "all" || 
+      (statusFilter === "active" && product.active) ||
+      (statusFilter === "low-stock" && product.stockQuantity <= (product.alertThreshold || 10));
+
+    return matchesSearch && matchesStatus;
+  });
+
+  // Handle opening repack dialog
+  const handleRepackProduct = (product: Product) => {
+    setSelectedBulkProduct(product);
+    
+    // Reset form with intelligent defaults
+    const initialWeight = "250";
+    const initialUnit = "g";
+    
+    setRepackFormData({
+      sourceQuantity: "1",
+      sourceUnit: "kg",
+      targetQuantity: "8",
+      unitWeight: initialWeight,
+      unitWeightUnit: initialUnit,
+      targetName: "",
+      targetSku: "",
+      sellingPrice: "",
+      costPrice: "",
+      mrp: "",
+      customWeight: "",
+      customWeightUnit: initialUnit,
+      selectedPresetWeight: initialWeight,
+      marginPercentage: "15",
+      mrpMarginPercentage: "25",
+      // Enhanced customization options
+      packagingType: "standard",
+      customPackagingType: "",
+      brandName: "",
+      productVariant: "",
+      expiryDays: "365",
+      batchPrefix: "",
+      customDescription: "",
+      nutritionalInfo: "",
+      storageInstructions: "",
+      allergenInfo: "",
+      countryOfOrigin: "India",
+      manufacturerName: "",
+      packagingMaterial: "plastic",
+      labelColor: "white",
+      priorityLevel: "normal",
+      qualityGrade: "A",
+      organicCertified: false,
+      customBarcode: "",
+      seasonalTag: "",
+      promotionalText: ""
+    });
+    
+    setIsRepackDialogOpen(true);
+    
+    // Auto-calculate initial values
+    setTimeout(() => {
+      recalculateRepackData(initialWeight, initialUnit, false);
+    }, 100);
+  };
+
+  // CRUD Operations for Repacked Products
+
+  // Create new product mutation
+  const createProductMutation = useMutation({
+    mutationFn: async (productData: any) => {
+      return await apiRequest("/api/products", "POST", productData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      queryClient.refetchQueries({ queryKey: ["/api/products"] });
+      toast({
+        title: "Product Created Successfully ✅",
+        description: "New product has been added to inventory",
+      });
+      setIsCreateDialogOpen(false);
+      resetForm();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Create Product",
+        description: error.message || "An error occurred while creating the product",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update product mutation
+  const updateProductMutation = useMutation({
+    mutationFn: async ({ id, ...productData }: any) => {
+      return await apiRequest(`/api/products/${id}`, "PUT", productData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      queryClient.refetchQueries({ queryKey: ["/api/products"] });
+      toast({
+        title: "Product Updated Successfully ✅",
+        description: "Product information has been updated",
+      });
+      setIsEditDialogOpen(false);
+      setSelectedProduct(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Update Product",
+        description: error.message || "An error occurred while updating the product",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete product mutation
+  const deleteProductMutation = useMutation({
+    mutationFn: async (productId: number) => {
+      return await apiRequest(`/api/products/${productId}`, "DELETE");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      queryClient.refetchQueries({ queryKey: ["/api/products"] });
+      toast({
+        title: "Product Deleted Successfully ✅",
+        description: "Product has been removed from inventory",
+      });
+      setIsDeleteDialogOpen(false);
+      setSelectedProduct(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Delete Product",
+        description: error.message || "An error occurred while deleting the product",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Duplicate product mutation
+  const duplicateProductMutation = useMutation({
+    mutationFn: async (product: Product) => {
+      const duplicatedProduct = {
+        ...product,
+        name: `${product.name} (Copy)`,
+        sku: `${product.sku}-COPY-${Date.now().toString().slice(-6)}`,
+        id: undefined, // Remove ID to create new product
+      };
+      return await apiRequest("/api/products", "POST", duplicatedProduct);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      queryClient.refetchQueries({ queryKey: ["/api/products"] });
+      toast({
+        title: "Product Duplicated Successfully ✅",
+        description: "A copy of the product has been created",
+      });
+      setIsDuplicateDialogOpen(false);
+      setSelectedProduct(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Duplicate Product",
+        description: error.message || "An error occurred while duplicating the product",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Bulk actions handler
+  const handleBulkAction = (action: string) => {
+    if (selectedItems.size === 0) {
+      toast({
+        title: "No Items Selected",
+        description: "Please select items to perform bulk actions",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    switch (action) {
+      case 'delete':
+        if (window.confirm(`Are you sure you want to delete ${selectedItems.size} selected items?`)) {
+          selectedItems.forEach(id => {
+            deleteProductMutation.mutate(id);
+          });
+          setSelectedItems(new Set());
+          setSelectAll(false);
+        }
+        break;
+      case 'activate':
+        selectedItems.forEach(id => {
+          const product = productsArray.find(p => p.id === id);
+          if (product) {
+            updateProductMutation.mutate({ ...product, active: true });
+          }
+        });
+        setSelectedItems(new Set());
+        setSelectAll(false);
+        break;
+      case 'deactivate':
+        selectedItems.forEach(id => {
+          const product = productsArray.find(p => p.id === id);
+          if (product) {
+            updateProductMutation.mutate({ ...product, active: false });
+          }
+        });
+        setSelectedItems(new Set());
+        setSelectAll(false);
+        break;
+    }
+  };
+
+  // Selection handlers
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedItems(new Set());
+      setSelectAll(false);
+    } else {
+      setSelectedItems(new Set(repackedProducts.map(p => p.id)));
+      setSelectAll(true);
+    }
+  };
+
+  const handleSelectItem = (productId: number) => {
+    const newSelected = new Set(selectedItems);
+    if (newSelected.has(productId)) {
+      newSelected.delete(productId);
+    } else {
+      newSelected.add(productId);
+    }
+    setSelectedItems(newSelected);
+    setSelectAll(newSelected.size === repackedProducts.length);
+  };
+
+  // Form handling functions
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      sku: "",
+      description: "",
+      price: "",
+      cost: "",
+      stockQuantity: "",
+      weight: "",
+      weightUnit: "g",
+      alertThreshold: ""
+    });
+  };
+
+  const handleEdit = (product: Product) => {
+    console.log('📝 Redirecting to professional repacking page for editing:', product.name);
+    
+    // Store product data for professional repacking page (edit mode)
+    localStorage.setItem('repackingIntegrationData', JSON.stringify({
+      id: product.id,
+      name: product.name,
+      sku: product.sku,
+      weight: product.weight,
+      weightUnit: product.weightUnit,
+      price: product.price,
+      cost: product.cost,
+      mrp: product.mrp,
+      stockQuantity: product.stockQuantity,
+      description: product.description,
+      isEditMode: true // Flag to indicate this is edit mode
+    }));
+    
+    // Navigate to professional repacking page
+    window.location.href = '/repacking-professional';
+  };
+
+  const handleView = (product: Product) => {
+    setSelectedProduct(product);
+    setIsViewDialogOpen(true);
+  };
+
+  const handleDelete = (product: Product) => {
+    setSelectedProduct(product);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDuplicate = (product: Product) => {
+    setSelectedProduct(product);
+    setIsDuplicateDialogOpen(true);
+  };
+
+  // Handle repack form submission
+  const handleSubmitRepack = () => {
+    if (!selectedBulkProduct || !repackFormData.targetName || !repackFormData.unitWeight) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    createRepackedProductMutation.mutate(repackFormData);
+  };
+
+  // Create repacked product mutation
+  const createRepackedProductMutation = useMutation({
+    mutationFn: async (repackData: any) => {
+      // Calculate final weight in grams for storage
+      const finalWeightInGrams = convertToGrams(
+        parseFloat(repackData.unitWeight), 
+        repackData.unitWeightUnit
+      );
+      
+      // Create comprehensive description with customization details
+      const descriptionParts = [
+        `Repacked from ${selectedBulkProduct?.name}`,
+        repackData.customDescription && `${repackData.customDescription}`,
+        repackData.brandName && `Brand: ${repackData.brandName}`,
+        repackData.productVariant && `Variant: ${repackData.productVariant}`,
+        repackData.qualityGrade && `Quality: Grade ${repackData.qualityGrade}`,
+        repackData.packagingType !== "standard" && `Packaging: ${repackData.packagingType === "custom" ? repackData.customPackagingType : repackData.packagingType}`,
+        repackData.organicCertified && "Organic Certified",
+        repackData.seasonalTag && `${repackData.seasonalTag}`,
+        repackData.promotionalText && `${repackData.promotionalText}`,
+        repackData.storageInstructions && `Storage: ${repackData.storageInstructions}`,
+        repackData.allergenInfo && `Allergens: ${repackData.allergenInfo}`,
+        repackData.nutritionalInfo && `Nutrition: ${repackData.nutritionalInfo}`,
+        repackData.manufacturerName && `Manufacturer: ${repackData.manufacturerName}`,
+        repackData.countryOfOrigin !== "India" && `Origin: ${repackData.countryOfOrigin}`,
+        `Shelf Life: ${repackData.expiryDays} days`,
+        `Priority: ${repackData.priorityLevel}`,
+        repackData.batchPrefix && `Batch: ${repackData.batchPrefix}`
+      ].filter(Boolean).join(" | ");
+
+      const productData = {
+        name: repackData.targetName,
+        sku: repackData.targetSku,
+        description: descriptionParts,
+        price: parseFloat(repackData.sellingPrice),
+        cost: parseFloat(repackData.costPrice),
+        mrp: parseFloat(repackData.mrp),
+        stockQuantity: parseInt(repackData.targetQuantity),
+        weight: finalWeightInGrams,
+        weightUnit: "g",
+        categoryId: selectedBulkProduct?.categoryId || 1,
+        alertThreshold: Math.max(5, Math.floor(parseInt(repackData.targetQuantity) * 0.2)),
+        active: true,
+        weightInGms: finalWeightInGrams,
+        barcode: repackData.customBarcode || undefined
+      };
+
+      return await apiRequest("/api/products", {
+        method: "POST",
+        body: JSON.stringify(productData),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      toast({
+        title: "Success",
+        description: "Repacked product created successfully",
+      });
+      setIsRepackDialogOpen(false);
+      setRepackFormData({
+        sourceQuantity: "1",
+        sourceUnit: "kg",
+        targetQuantity: "8",
+        unitWeight: "250",
+        unitWeightUnit: "g",
+        targetName: "",
+        targetSku: "",
+        sellingPrice: "",
+        costPrice: "",
+        mrp: "",
+        customWeight: "",
+        customWeightUnit: "g",
+        selectedPresetWeight: "250",
+        marginPercentage: "15",
+        mrpMarginPercentage: "25",
+        // Enhanced customization options
+        packagingType: "standard",
+        customPackagingType: "",
+        brandName: "",
+        productVariant: "",
+        expiryDays: "365",
+        batchPrefix: "",
+        customDescription: "",
+        nutritionalInfo: "",
+        storageInstructions: "",
+        allergenInfo: "",
+        countryOfOrigin: "India",
+        manufacturerName: "",
+        packagingMaterial: "plastic",
+        labelColor: "white",
+        priorityLevel: "normal",
+        qualityGrade: "A",
+        organicCertified: false,
+        customBarcode: "",
+        seasonalTag: "",
+        promotionalText: ""
+      });
+    },
+    onError: (error) => {
+      console.error("Error creating repacked product:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create repacked product",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Note: handleSubmitRepack function already defined above
+
+  // Note: filtered functions already defined above
+
+  if (isProductsLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading repacking dashboard...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Professional Repacking Dashboard</h1>
+            <p className="text-muted-foreground">
+              Manage bulk products and create repackaged items with kg/g unit conversion
+            </p>
+          </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Bulk Products</CardTitle>
+              <PackageIcon className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{bulkProducts.length}</div>
+              <p className="text-xs text-muted-foreground">Available for repacking</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Repacked Products</CardTitle>
+              <Package className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{repackedProducts.length}</div>
+              <p className="text-xs text-muted-foreground">Created from bulk items</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Stock Value</CardTitle>
+              <TrendingUpIcon className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                ₹{bulkProducts.reduce((sum, p) => sum + (p.price * p.stockQuantity), 0).toLocaleString()}
+              </div>
+              <p className="text-xs text-muted-foreground">Bulk inventory value</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Low Stock Items</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {bulkProducts.filter(p => p.stockQuantity <= (p.alertThreshold || 10)).length}
+              </div>
+              <p className="text-xs text-muted-foreground">Need restocking</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Search and Filters */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search products by name or SKU..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-8"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Products</SelectItem>
+                  <SelectItem value="active">Active Only</SelectItem>
+                  <SelectItem value="low-stock">Low Stock</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Product Management Tabs */}
+        <Tabs defaultValue="bulk" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="bulk">Bulk Products ({bulkProducts.length})</TabsTrigger>
+            <TabsTrigger value="repacked">Repacked Products ({repackedProducts.length})</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="bulk" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Bulk Products for Repacking</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Large quantity products suitable for breaking down into smaller packages
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Product</TableHead>
+                        <TableHead>SKU</TableHead>
+                        <TableHead>Weight/Unit</TableHead>
+                        <TableHead>Stock</TableHead>
+                        <TableHead>Price</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredBulkProducts.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-8">
+                            <div className="text-center">
+                              <PackageIcon className="mx-auto h-12 w-12 text-gray-400" />
+                              <h3 className="mt-2 text-sm font-semibold text-gray-900">No bulk products</h3>
+                              <p className="mt-1 text-sm text-gray-500">
+                                No bulk products found matching your criteria.
+                              </p>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredBulkProducts.map((product: Product) => (
+                          <TableRow key={product.id}>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium">{product.name}</div>
+                                <div className="text-sm text-muted-foreground truncate max-w-[200px]">
+                                  {product.description}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                                {product.sku}
+                              </code>
+                            </TableCell>
+                            <TableCell>
+                              {product.weight ? (
+                                <div className="text-sm">
+                                  <div>{product.weight}{product.weightUnit || 'g'}</div>
+                                  {product.weight >= 1000 && (
+                                    <div className="text-muted-foreground">
+                                      ({(product.weight / 1000).toFixed(1)}kg)
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">Not specified</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center space-x-2">
+                                <span className="font-medium">{product.stockQuantity}</span>
+                                {product.stockQuantity <= (product.alertThreshold || 10) && (
+                                  <AlertTriangle className="h-4 w-4 text-red-500" />
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>₹{Number(product.price).toFixed(2)}</TableCell>
+                            <TableCell>
+                              <Badge variant={product.active ? "default" : "secondary"}>
+                                {product.active ? "Active" : "Inactive"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Link href="/repacking-professional">
+                                <Button
+                                  size="sm"
+                                  className="mr-2"
+                                  onClick={() => {
+                                    // Store product data for repacking page
+                                    localStorage.setItem('repackingIntegrationData', JSON.stringify({
+                                      id: product.id,
+                                      name: product.name,
+                                      sku: product.sku,
+                                      weight: product.weight,
+                                      weightUnit: product.weightUnit,
+                                      price: product.price,
+                                      cost: product.cost,
+                                      mrp: product.mrp,
+                                      stockQuantity: product.stockQuantity
+                                    }));
+                                  }}
+                                >
+                                  <Package className="h-4 w-4 mr-1" />
+                                  Repack
+                                </Button>
+                              </Link>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="repacked" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Repacked Products</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Products created by repacking bulk items into smaller units
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {selectedItems.size > 0 && (
+                      <div className="flex items-center gap-2 border-r pr-2 mr-2">
+                        <Badge variant="secondary">{selectedItems.size} selected</Badge>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleBulkAction('activate')}
+                        >
+                          <Check className="h-4 w-4 mr-1" />
+                          Activate
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleBulkAction('deactivate')}
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Deactivate
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleBulkAction('delete')}
+                        >
+                          <Trash className="h-4 w-4 mr-1" />
+                          Delete Selected
+                        </Button>
+                      </div>
+                    )}
+                    <Button
+                      size="sm"
+                      onClick={() => setIsCreateDialogOpen(true)}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      <PlusIcon className="h-4 w-4 mr-2" />
+                      Add Product
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const csvContent = repackedProducts.map(p => 
+                          `"${p.name}","${p.sku}","${p.price}","${p.stockQuantity}","${p.active ? 'Active' : 'Inactive'}"`
+                        ).join('\n');
+                        const blob = new Blob([`Name,SKU,Price,Stock,Status\n${csvContent}`], { type: 'text/csv' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `repacked-products-${new Date().toISOString().split('T')[0]}.csv`;
+                        a.click();
+                      }}
+                    >
+                      <DownloadIcon className="h-4 w-4 mr-2" />
+                      Export
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12">
+                          <input
+                            type="checkbox"
+                            checked={selectAll}
+                            onChange={handleSelectAll}
+                            className="rounded border-gray-300"
+                          />
+                        </TableHead>
+                        <TableHead>Product</TableHead>
+                        <TableHead>SKU</TableHead>
+                        <TableHead>Weight/Unit</TableHead>
+                        <TableHead>Stock</TableHead>
+                        <TableHead>Price</TableHead>
+                        <TableHead>MRP</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredRepackedProducts.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={9} className="text-center py-8">
+                            <div className="text-center">
+                              <Package className="mx-auto h-12 w-12 text-gray-400" />
+                              <h3 className="mt-2 text-sm font-semibold text-gray-900">No repacked products</h3>
+                              <p className="mt-1 text-sm text-gray-500">
+                                Start repacking bulk products to see them here.
+                              </p>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredRepackedProducts.map((product: Product) => (
+                          <TableRow key={product.id}>
+                            <TableCell>
+                              <input
+                                type="checkbox"
+                                checked={selectedItems.has(product.id)}
+                                onChange={() => handleSelectItem(product.id)}
+                                className="rounded border-gray-300"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium">{product.name}</div>
+                                <div className="text-sm text-muted-foreground truncate max-w-[200px]">
+                                  {product.description}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                                {product.sku}
+                              </code>
+                            </TableCell>
+                            <TableCell>
+                              {product.weight ? (
+                                <div className="text-sm">
+                                  <div>{product.weight}{product.weightUnit || 'g'}</div>
+                                  {product.weight >= 1000 && (
+                                    <div className="text-muted-foreground">
+                                      ({(product.weight / 1000).toFixed(1)}kg)
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">Not specified</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center space-x-2">
+                                <span className="font-medium">{product.stockQuantity}</span>
+                                {product.stockQuantity <= (product.alertThreshold || 10) && (
+                                  <AlertTriangle className="h-4 w-4 text-red-500" />
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>₹{Number(product.price).toFixed(2)}</TableCell>
+                            <TableCell>₹{Number(product.mrp).toFixed(2)}</TableCell>
+                            <TableCell>
+                              <Badge variant={product.active ? "default" : "secondary"}>
+                                {product.active ? "Active" : "Inactive"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" className="h-8 w-8 p-0">
+                                    <span className="sr-only">Open menu</span>
+                                    <MoreHorizontalIcon className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-[200px]">
+                                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuGroup>
+                                    <DropdownMenuItem onClick={() => handleView(product)}>
+                                      <Eye className="mr-2 h-4 w-4" />
+                                      <span>View Details</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleEdit(product)}>
+                                      <Edit className="mr-2 h-4 w-4" />
+                                      <span>Edit Product</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleDuplicate(product)}>
+                                      <CopyIcon className="mr-2 h-4 w-4" />
+                                      <span>Duplicate</span>
+                                    </DropdownMenuItem>
+                                  </DropdownMenuGroup>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem 
+                                    onClick={() => handleDelete(product)}
+                                    className="text-red-600"
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    <span>Delete</span>
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        {/* Repack dialog removed - now redirects to /repacking-professional */}
+
+        {/* Create Product Dialog */}
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <PlusIcon className="h-5 w-5" />
+                Create New Product
+              </DialogTitle>
+              <DialogDescription>
+                Add a new product to your repacked inventory
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="name" className="text-right">Name</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="sku" className="text-right">SKU</Label>
+                <Input
+                  id="sku"
+                  value={formData.sku}
+                  onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="price" className="text-right">Price</Label>
+                <Input
+                  id="price"
+                  type="number"
+                  step="0.01"
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="cost" className="text-right">Cost</Label>
+                <Input
+                  id="cost"
+                  type="number"
+                  step="0.01"
+                  value={formData.cost}
+                  onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="stock" className="text-right">Stock</Label>
+                <Input
+                  id="stock"
+                  type="number"
+                  value={formData.stockQuantity}
+                  onChange={(e) => setFormData({ ...formData, stockQuantity: e.target.value })}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="description" className="text-right">Description</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="col-span-3"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={() => {
+                  const productData = {
+                    name: formData.name,
+                    sku: formData.sku,
+                    description: formData.description,
+                    price: parseFloat(formData.price),
+                    cost: parseFloat(formData.cost),
+                    mrp: parseFloat(formData.price) * 1.2, // Default MRP
+                    stockQuantity: parseInt(formData.stockQuantity),
+                    weight: parseFloat(formData.weight) || 0,
+                    weightUnit: formData.weightUnit,
+                    categoryId: 1,
+                    alertThreshold: parseInt(formData.alertThreshold) || 10,
+                    active: true
+                  };
+                  createProductMutation.mutate(productData);
+                }}
+                disabled={!formData.name || !formData.sku || !formData.price || createProductMutation.isPending}
+              >
+                {createProductMutation.isPending ? "Creating..." : "Create Product"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Product Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <EditIcon className="h-5 w-5" />
+                Edit Product
+              </DialogTitle>
+              <DialogDescription>
+                Update product information
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-name" className="text-right">Name</Label>
+                <Input
+                  id="edit-name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-sku" className="text-right">SKU</Label>
+                <Input
+                  id="edit-sku"
+                  value={formData.sku}
+                  onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-price" className="text-right">Price</Label>
+                <Input
+                  id="edit-price"
+                  type="number"
+                  step="0.01"
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-cost" className="text-right">Cost</Label>
+                <Input
+                  id="edit-cost"
+                  type="number"
+                  step="0.01"
+                  value={formData.cost}
+                  onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-stock" className="text-right">Stock</Label>
+                <Input
+                  id="edit-stock"
+                  type="number"
+                  value={formData.stockQuantity}
+                  onChange={(e) => setFormData({ ...formData, stockQuantity: e.target.value })}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-description" className="text-right">Description</Label>
+                <Textarea
+                  id="edit-description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="col-span-3"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={() => {
+                  if (selectedProduct) {
+                    const productData = {
+                      id: selectedProduct.id,
+                      name: formData.name,
+                      sku: formData.sku,
+                      description: formData.description,
+                      price: parseFloat(formData.price),
+                      cost: parseFloat(formData.cost),
+                      mrp: selectedProduct.mrp,
+                      stockQuantity: parseInt(formData.stockQuantity),
+                      weight: parseFloat(formData.weight) || selectedProduct.weight,
+                      weightUnit: formData.weightUnit || selectedProduct.weightUnit,
+                      categoryId: selectedProduct.categoryId,
+                      alertThreshold: parseInt(formData.alertThreshold) || selectedProduct.alertThreshold,
+                      active: selectedProduct.active
+                    };
+                    updateProductMutation.mutate(productData);
+                  }
+                }}
+                disabled={!formData.name || !formData.sku || !formData.price || updateProductMutation.isPending}
+              >
+                {updateProductMutation.isPending ? "Updating..." : "Update Product"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* View Product Dialog */}
+        <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <EyeIcon className="h-5 w-5" />
+                Product Details
+              </DialogTitle>
+              <DialogDescription>
+                View complete product information
+              </DialogDescription>
+            </DialogHeader>
+            {selectedProduct && (
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="font-medium">Name:</div>
+                  <div className="col-span-2">{selectedProduct.name}</div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="font-medium">SKU:</div>
+                  <div className="col-span-2">
+                    <code className="bg-muted px-2 py-1 rounded text-sm">{selectedProduct.sku}</code>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="font-medium">Price:</div>
+                  <div className="col-span-2">₹{Number(selectedProduct.price).toFixed(2)}</div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="font-medium">Cost:</div>
+                  <div className="col-span-2">₹{Number(selectedProduct.cost).toFixed(2)}</div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="font-medium">MRP:</div>
+                  <div className="col-span-2">₹{Number(selectedProduct.mrp).toFixed(2)}</div>
+                </div>
+                {selectedProduct.wholesalePrice && (
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="font-medium">Wholesale Price:</div>
+                    <div className="col-span-2">₹{Number(selectedProduct.wholesalePrice).toFixed(2)}</div>
+                  </div>
+                )}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="font-medium">Stock:</div>
+                  <div className="col-span-2 flex items-center gap-2">
+                    {selectedProduct.stockQuantity}
+                    {selectedProduct.stockQuantity <= (selectedProduct.alertThreshold || 10) && (
+                      <Badge variant="destructive">Low Stock</Badge>
+                    )}
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="font-medium">Weight:</div>
+                  <div className="col-span-2">
+                    {selectedProduct.weight ? 
+                      `${selectedProduct.weight}${selectedProduct.weightUnit || 'g'}` : 
+                      'Not specified'
+                    }
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="font-medium">Status:</div>
+                  <div className="col-span-2">
+                    <Badge variant={selectedProduct.active ? "default" : "secondary"}>
+                      {selectedProduct.active ? "Active" : "Inactive"}
+                    </Badge>
+                  </div>
+                </div>
+                {selectedProduct.description && (
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="font-medium">Description:</div>
+                    <div className="col-span-2 text-sm text-muted-foreground">
+                      {selectedProduct.description}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
+                Close
+              </Button>
+              <Button onClick={() => {
+                setIsViewDialogOpen(false);
+                if (selectedProduct) handleEdit(selectedProduct);
+              }}>
+                <EditIcon className="h-4 w-4 mr-2" />
+                Edit Product
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Product Dialog */}
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <Trash className="h-5 w-5 text-red-500" />
+                Delete Product
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete "{selectedProduct?.name}"? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            {selectedProduct && (
+              <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+                <div className="text-sm space-y-1">
+                  <div><span className="font-medium">SKU:</span> {selectedProduct.sku}</div>
+                  <div><span className="font-medium">Current Stock:</span> {selectedProduct.stockQuantity}</div>
+                  <div><span className="font-medium">Value:</span> ₹{(selectedProduct.price * selectedProduct.stockQuantity).toFixed(2)}</div>
+                </div>
+              </div>
+            )}
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (selectedProduct) {
+                    deleteProductMutation.mutate(selectedProduct.id);
+                  }
+                }}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {deleteProductMutation.isPending ? "Deleting..." : "Delete Product"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Duplicate Product Dialog */}
+        <AlertDialog open={isDuplicateDialogOpen} onOpenChange={setIsDuplicateDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <CopyIcon className="h-5 w-5" />
+                Duplicate Product
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Create a copy of "{selectedProduct?.name}" with a new SKU?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            {selectedProduct && (
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <div className="text-sm space-y-1">
+                  <div><span className="font-medium">Original SKU:</span> {selectedProduct.sku}</div>
+                  <div><span className="font-medium">New SKU:</span> {selectedProduct.sku}-COPY-{Date.now().toString().slice(-6)}</div>
+                  <div><span className="font-medium">New Name:</span> {selectedProduct.name} (Copy)</div>
+                </div>
+              </div>
+            )}
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (selectedProduct) {
+                    duplicateProductMutation.mutate(selectedProduct);
+                  }
+                }}
+              >
+                {duplicateProductMutation.isPending ? "Duplicating..." : "Create Copy"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </DashboardLayout>
+  );
+}

@@ -1,0 +1,3850 @@
+import React, { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
+import { DashboardLayout } from "@/components/layout/dashboard-layout";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  InfoIcon,
+  TagIcon,
+  DollarSignIcon,
+  BoxIcon,
+  SettingsIcon,
+  PackageIcon,
+  ShoppingCartIcon,
+  BarChart3Icon,
+  CheckIcon,
+  XIcon,
+  EditIcon,
+  Loader2Icon,
+  PlusIcon,
+  ChevronsUpDownIcon
+} from "lucide-react";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { RefreshCw } from "lucide-react";
+
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import type { Category, Supplier, Product, TaxCategory, HsnCode } from "@shared/schema";
+import {
+  calculateGSTBreakdown,
+  suggestGSTRate,
+  generateAlias as autoGenerateAlias,
+  formatGSTBreakdown,
+  validateHSNCode
+} from "@/lib/gst-calculator";
+
+const productFormSchema = z.object({
+  // Item Information
+  itemCode: z.string().min(1, "Item code is required"),
+  itemName: z.string().min(2, "Item name is required"),
+  manufacturerName: z.string().optional(),
+  supplierName: z.string().optional(),
+  alias: z.string().optional(),
+  aboutProduct: z.string().optional(),
+
+  // Category Information
+  itemProductType: z.string().default("Standard"),
+  department: z.string().optional(),
+  mainCategory: z.string().optional(),
+  subCategory: z.string().optional(),
+  brand: z.string().optional(),
+  buyer: z.string().optional(),
+
+  // Tax Information
+  hsnCode: z.string().optional(),
+  gstCode: z.string().optional(),
+  purchaseGstCalculatedOn: z.string().default("MRP"),
+  gstUom: z.string().default("PIECES"),
+  purchaseAbatement: z.string().optional(),
+  configItemWithCommodity: z.boolean().default(false),
+  seniorExemptApplicable: z.boolean().default(false),
+
+  // GST Breakdown
+  cgstRate: z.string().optional(),
+  sgstRate: z.string().optional(),
+  igstRate: z.string().optional(),
+  cessRate: z.string().optional(),
+  taxCalculationMethod: z.string().optional(),
+
+  // EAN Code/Barcode
+  eanCodeRequired: z.boolean().default(false),
+  barcode: z.string().optional(),
+  barcodeType: z.string().optional(),
+
+  // Weight & Packing (Enhanced for Bulk Items)
+  weightsPerUnit: z.string().default("1"),
+  bulkWeight: z.string().optional(),
+  bulkWeightUnit: z.string().default("kg"),
+  packingType: z.string().default("Bulk"),
+  unitsPerPack: z.string().default("1"),
+  batchExpiryDetails: z.string().default("Not Required"),
+  itemPreparationsStatus: z.string().default("Trade As Is"),
+  grindingCharge: z.string().optional(),
+  weightInGms: z.string().optional(),
+  bulkItemName: z.string().optional(),
+  repackageUnits: z.string().optional(),
+  repackageType: z.string().optional(),
+  packagingMaterial: z.string().optional(),
+
+  // Item Properties
+  decimalPoint: z.string().default("0"),
+  productType: z.string().default("NA"),
+
+  // Pricing
+  sellBy: z.string().default("None"),
+  itemPerUnit: z.string().default("1"),
+  maintainSellingMrpBy: z.string().default("Multiple Selling Price & Multiple MRP"),
+  batchSelection: z.string().default("Not Applicable"),
+  isWeighable: z.boolean().default(false),
+
+  // Reorder Configurations
+  skuType: z.string().default("Put Away"),
+  indentType: z.string().default("Manual"),
+
+  // Purchase Order
+  gateKeeperMargin: z.string().optional(),
+
+  // Approval Configurations
+  allowItemFree: z.boolean().default(false),
+
+  // Mobile App Configurations
+  showOnMobileDashboard: z.boolean().default(false),
+  enableMobileNotifications: z.boolean().default(false),
+  quickAddToCart: z.boolean().default(false),
+
+  // Additional Properties
+  perishableItem: z.boolean().default(false),
+  temperatureControlled: z.boolean().default(false),
+  fragileItem: z.boolean().default(false),
+  trackSerialNumbers: z.boolean().default(false),
+
+  // Compliance Information
+  fdaApproved: z.boolean().default(false),
+  bisCertified: z.boolean().default(false),
+  organicCertified: z.boolean().default(false),
+
+  // Other Information
+  itemIngredients: z.string().optional(),
+
+  // Basic fields
+  price: z.string().min(1, "Price is required"),
+  mrp: z.string().min(1, "MRP is required"),
+  cost: z.string().optional(),
+  wholesalePrice: z.string().optional(),
+  weight: z.string().optional(),
+  weightUnit: z.string().default("kg"),
+  categoryId: z.number(),
+  stockQuantity: z.string().min(0, "Stock quantity is required"),
+  active: z.boolean().default(true),
+});
+
+type ProductFormValues = z.infer<typeof productFormSchema>;
+
+export default function AddItemProfessional() {
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
+  const [currentSection, setCurrentSection] = useState("item-information");
+  const [enabledModules, setEnabledModules] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    try {
+      const savedModules = localStorage.getItem('enabledModules');
+      if (savedModules) {
+        setEnabledModules(JSON.parse(savedModules));
+      }
+    } catch (e) {
+      console.error("Failed to parse enabledModules", e);
+    }
+  }, []);  // Extract edit ID from URL parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  const editId = urlParams.get('edit');
+  const isEditMode = !!editId;
+
+  console.log('Edit mode:', isEditMode, 'Edit ID:', editId); // Debug log
+
+  // Fetch product data if in edit mode
+  const { data: editingProduct, isLoading: isLoadingProduct, error: productError } = useQuery({
+    queryKey: ["/api/products", editId],
+    queryFn: async () => {
+      if (!editId) return null;
+      console.log('Fetching product with ID:', editId);
+      const response = await fetch(`/api/products/${editId}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Failed to fetch product:', response.status, errorText);
+        throw new Error(`Failed to fetch product: ${response.status}`);
+      }
+      const product = await response.json();
+      console.log('Fetched product:', product);
+      return product;
+    },
+    enabled: !!editId,
+    retry: 1,
+  });
+
+  // Fetch next item code from API
+  const fetchNextItemCode = async () => {
+    try {
+      console.log('Fetching next sequential item code from database...');
+      const response = await fetch('/api/products/next-sku');
+      if (response.ok) {
+        const { nextSku } = await response.json();
+        console.log('Next available item code:', nextSku);
+        form.setValue('itemCode', nextSku, { shouldValidate: true });
+      } else {
+        throw new Error('Failed to fetch next SKU');
+      }
+    } catch (error) {
+      console.error('Error fetching next item code:', error);
+      // Fallback: use legacy local generation if API fails
+      const legacyCode = generateItemCode();
+      form.setValue('itemCode', legacyCode, { shouldValidate: true });
+    }
+  };
+
+  // Generate sequential item code locally if API is unavailable
+  const generateItemCode = () => {
+    const existingProducts = allProducts || [];
+    let maxNumber = 0;
+    existingProducts.forEach((product: any) => {
+      if (product.sku) {
+        const skuString = product.sku.toString();
+        let num;
+        if (skuString.startsWith('ITM')) {
+          num = parseInt(skuString.replace('ITM', ''), 10);
+        } else {
+          num = parseInt(skuString, 10);
+        }
+
+        // Only consider if it's a realistic sequential number (less than 1 million)
+        if (!isNaN(num) && num > maxNumber && num < 1000000) {
+          maxNumber = num;
+        }
+      }
+    });
+
+    // If no reasonable sequential numbers found, start at 1
+    // (This handles the case where all existing items have old 9-digit random codes)
+    return (maxNumber + 1).toString();
+  };
+
+  // Generate fallback item code when products aren't loaded yet
+  const generateFallbackItemCode = () => {
+    // Instead of random timestamp string, fallback to 1 if no products loaded
+    return "1";
+  };
+
+  // Fetch categories
+  const { data: categories = [], isLoading: isLoadingCategories } = useQuery({
+    queryKey: ["/api/categories"],
+  }) as { data: Category[], isLoading: boolean };
+
+  // Fetch item product types
+  const { data: itemProductTypes = [], isLoading: isLoadingItemProductTypes } = useQuery<{ id: number, name: string }[]>({
+    queryKey: ["/api/item-product-types"],
+  });
+
+  // Fetch departments
+  const { data: departments = [], isLoading: isLoadingDepartments } = useQuery<{ id: number, name: string }[]>({
+    queryKey: ["/api/departments"],
+  });
+
+  // Fetch suppliers with enhanced debugging
+  const { data: suppliers = [], isLoading: isLoadingSuppliers } = useQuery({
+    queryKey: ["/api/suppliers"],
+    queryFn: async () => {
+      console.log('🏭 Fetching suppliers data...');
+      const response = await fetch("/api/suppliers");
+      if (!response.ok) throw new Error("Failed to fetch suppliers");
+      const suppliersData = await response.json();
+      console.log('✅ Suppliers data loaded:', suppliersData.length, 'suppliers');
+      return suppliersData;
+    },
+  }) as { data: Supplier[], isLoading: boolean };
+
+  // Fetch all products for bulk item selection
+  const { data: allProducts = [], isLoading: isLoadingProducts, error: allProductsError } = useQuery({
+    queryKey: ["/api/products/all"],
+    queryFn: async () => {
+      const response = await fetch("/api/products");
+      if (!response.ok) throw new Error("Failed to fetch products");
+      return response.json();
+    },
+  });
+
+  const { data: taxCategories = [] } = useQuery<TaxCategory[]>({
+    queryKey: ['/api/tax-categories'],
+    queryFn: async () => {
+      const res = await fetch('/api/tax-categories');
+      if (!res.ok) throw new Error('Failed to fetch tax categories');
+      return res.json();
+    }
+  });
+
+  // Fetch HSN Codes
+  const { data: hsnCodes = [] } = useQuery<HsnCode[]>({
+    queryKey: ['/api/hsn-codes'],
+    queryFn: async () => {
+      const res = await fetch('/api/hsn-codes');
+      if (!res.ok) throw new Error('Failed to fetch HSN codes');
+      return res.json();
+    }
+  });
+
+  // Derive combined HSN codes from Master List + Tax Categories
+  const derivedHsnCodes = React.useMemo(() => {
+    const combined = [...hsnCodes];
+    const seenCodes = new Set(combined.map(h => h.hsnCode));
+
+    if (taxCategories) {
+      taxCategories.forEach((cat: TaxCategory) => {
+        if (cat.hsnCodeRange) {
+          // Handle comma separated values or ranges
+          const rawCodes = cat.hsnCodeRange.split(/[,-]/);
+
+          rawCodes.forEach(codeRaw => {
+            const code = codeRaw.trim();
+            if (code && code.length > 2 && !seenCodes.has(code)) {
+              seenCodes.add(code);
+              combined.push({
+                id: -1 * Math.random(), // Temporary ID for key
+                hsnCode: code,
+                description: `${cat.name} (Tax Linked)`,
+                taxCategoryId: cat.id
+              } as any);
+            }
+          });
+        }
+      });
+    }
+    return combined;
+  }, [hsnCodes, taxCategories]);
+
+
+  // Method to refresh all data
+  const refreshAllData = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/suppliers"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/products/all"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/tax/categories"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/item-product-types"] });
+  };
+
+  const [isAddSupplierOpen, setIsAddSupplierOpen] = useState(false);
+  const [newSupplierName, setNewSupplierName] = useState("");
+  const [addSupplierType, setAddSupplierType] = useState<"manufacturer" | "supplier">("supplier");
+
+  const createSupplierMutation = useMutation({
+    mutationFn: async (newName: string) => {
+      const payload = { 
+        name: newName,
+        supplierType: addSupplierType === "manufacturer" ? "manufacturer" : "supplier"
+      };
+      const res = await apiRequest("POST", "/api/suppliers", payload);
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      // Optimistically add to cache so it immediately renders in Select
+      queryClient.setQueryData(["/api/suppliers"], (old: any) => {
+        const current = Array.isArray(old) ? old : [];
+        return [...current, data];
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/suppliers"] });
+
+      toast({
+        title: "Success",
+        description: `Successfully created ${addSupplierType}: ${data.name}.`,
+      });
+      setIsAddSupplierOpen(false);
+      setNewSupplierName("");
+      setTimeout(() => {
+        if (addSupplierType === "manufacturer") {
+          form.setValue("manufacturerName", data.name);
+        } else {
+          form.setValue("supplierName", data.name);
+        }
+      }, 100);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: `Failed to create: ${error.message}`,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // --- New Tax Category States ---
+  const [isAddTaxOpen, setIsAddTaxOpen] = useState(false);
+  const [newTaxName, setNewTaxName] = useState("");
+  const [newTaxRate, setNewTaxRate] = useState(0);
+  const [newTaxDesc, setNewTaxDesc] = useState("");
+  const [newTaxHsn, setNewTaxHsn] = useState("");
+
+  const createCategoryMutation = useMutation({
+    mutationFn: async (newCategory: any) => {
+      const res = await apiRequest("POST", "/api/tax-categories", newCategory);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tax-categories"] });
+      // Also invalidate HSN codes as they might be updated
+      queryClient.invalidateQueries({ queryKey: ["/api/hsn-codes"] });
+
+      toast({
+        title: "Category Added",
+        description: "New tax category has been created successfully.",
+      });
+      setIsAddTaxOpen(false);
+      setNewTaxName("");
+      setNewTaxRate(0);
+      setNewTaxDesc("");
+      setNewTaxHsn("");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: `Failed to create category: ${error.message}`,
+        variant: "destructive",
+      });
+    },
+  });
+  // --- New Item Product Type States ---
+  const [isAddItemTypeOpen, setIsAddItemTypeOpen] = useState(false);
+  const [newItemTypeName, setNewItemTypeName] = useState("");
+
+  const createItemTypeMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const res = await apiRequest("POST", "/api/item-product-types", { name: name.trim() });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["/api/item-product-types"], (old: any) => [...(Array.isArray(old) ? old : []), data]);
+      queryClient.invalidateQueries({ queryKey: ["/api/item-product-types"] });
+      toast({ title: "Success", description: `Created Item Product Type: ${data.name}` });
+      setIsAddItemTypeOpen(false);
+      setNewItemTypeName("");
+      setTimeout(() => form.setValue("itemProductType", data.name), 100);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: `Failed to create: ${error.message}`, variant: "destructive" });
+    },
+  });
+
+  // --- New Department States ---
+  const [isAddDeptOpen, setIsAddDeptOpen] = useState(false);
+  const [newDeptName, setNewDeptName] = useState("");
+
+  const createDeptMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const res = await apiRequest("POST", "/api/departments", { name: name.trim() });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["/api/departments"], (old: any) => [...(Array.isArray(old) ? old : []), data]);
+      queryClient.invalidateQueries({ queryKey: ["/api/departments"] });
+      toast({ title: "Success", description: `Created Department: ${data.name}` });
+      setIsAddDeptOpen(false);
+      setNewDeptName("");
+      setTimeout(() => form.setValue("department", data.name), 100);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: `Failed to create: ${error.message}`, variant: "destructive" });
+    },
+  });
+
+  // --- New Main Category States ---
+  const [isAddMainCategoryOpen, setIsAddMainCategoryOpen] = useState(false);
+  const [newMainCategoryName, setNewMainCategoryName] = useState("");
+
+  const createMainCategoryMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const res = await apiRequest("POST", "/api/categories", { name: name.trim() });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["/api/categories"], (old: any) => [...(Array.isArray(old) ? old : []), data]);
+      queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
+      toast({ title: "Success", description: `Created Category: ${data.name}` });
+      setIsAddMainCategoryOpen(false);
+      setNewMainCategoryName("");
+      setTimeout(() => {
+        form.setValue("mainCategory", data.name);
+        form.setValue("categoryId", data.id);
+      }, 100);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: `Failed to create: ${error.message}`, variant: "destructive" });
+    },
+  });
+
+  // Department options are now fetched over API
+  const form = useForm<ProductFormValues>({
+    resolver: zodResolver(productFormSchema),
+    defaultValues: {
+      itemCode: "",
+      itemName: "",
+      manufacturerName: "",
+      supplierName: "",
+      alias: "",
+      aboutProduct: "",
+      itemProductType: "Standard",
+      department: "",
+      mainCategory: "",
+      subCategory: "",
+      brand: "",
+      buyer: "",
+      hsnCode: "",
+      gstCode: "GST 12%",
+      purchaseGstCalculatedOn: "MRP",
+      gstUom: "PIECES",
+      purchaseAbatement: "",
+      configItemWithCommodity: false,
+      seniorExemptApplicable: false,
+      eanCodeRequired: false,
+      barcode: "",
+      weightsPerUnit: "1",
+      batchExpiryDetails: "Not Required",
+      itemPreparationsStatus: "Trade As Is",
+      grindingCharge: "",
+      weightInGms: "",
+      bulkItemName: "",
+      repackageUnits: "",
+      repackageType: "",
+      packagingMaterial: "",
+      decimalPoint: "0",
+      productType: "NA",
+      sellBy: "None",
+      itemPerUnit: "1",
+      maintainSellingMrpBy: "Multiple Selling Price & Multiple MRP",
+      batchSelection: "Not Applicable",
+      isWeighable: false,
+      skuType: "Put Away",
+      indentType: "Manual",
+      gateKeeperMargin: "",
+      allowItemFree: false,
+      showOnMobileDashboard: false,
+      enableMobileNotifications: false,
+      quickAddToCart: false,
+      perishableItem: false,
+      temperatureControlled: false,
+      fragileItem: false,
+      trackSerialNumbers: false,
+      fdaApproved: false,
+      bisCertified: false,
+      organicCertified: false,
+      itemIngredients: "",
+      price: "",
+      mrp: "",
+      cost: "",
+      wholesalePrice: "",
+      weight: "",
+      weightUnit: "kg",
+      categoryId: categories[0]?.id || 1,
+      stockQuantity: "0",
+      active: true,
+    },
+  });
+
+  // Watch form values for dynamic calculations
+  const watchedValues = form.watch();
+
+  // Filter bulk items from all products
+  const bulkItems = allProducts.filter((product: any) =>
+    product.name && (
+      product.name.toLowerCase().includes('bulk') ||
+      product.name.toLowerCase().includes('bag') ||
+      product.name.toLowerCase().includes('container') ||
+      product.name.toLowerCase().includes('kg') ||
+      product.name.toLowerCase().includes('ltr') ||
+      (parseFloat(product.weight || "0") >= 1 && product.weightUnit === 'kg') ||
+      product.stockQuantity > 10
+    )
+  );
+
+  // Function to create bulk item - moved here to be accessible in JSX
+  const createBulkItem = async (bulkItemName: string) => {
+    try {
+      const bulkProduct = {
+        name: bulkItemName,
+        sku: `BULK${Date.now()}`,
+        description: `Bulk item for repackaging - ${bulkItemName}`,
+        price: "0",
+        cost: "0",
+        mrp: "0",
+        weight: "1",
+        weightUnit: "kg",
+        categoryId: categories.length > 0 ? categories[0].id : 1,
+        stockQuantity: 0,
+        alertThreshold: 5,
+        barcode: "",
+        hsnCode: "",
+        cgstRate: "9",
+        sgstRate: "9",
+        igstRate: "0",
+        cessRate: "0",
+        taxCalculationMethod: "exclusive",
+        manufacturerName: form.getValues("manufacturerName") || "",
+        supplierName: suppliers.length > 0 ? suppliers[0].name : "",
+        manufacturerId: null,
+        supplierId: suppliers.length > 0 ? suppliers[0].id : null,
+        active: true,
+        itemPreparationsStatus: "Bulk",
+        alias: `BULK${bulkItemName.replace(/\s+/g, '')}`,
+        itemProductType: "Standard",
+        department: "Bulk Items",
+        weightInGms: "1000"
+      };
+
+      const response = await apiRequest("/api/products", "POST", bulkProduct);
+
+      if (response.ok) {
+        toast({
+          title: "Bulk Item Created",
+          description: `${bulkItemName} has been created as a bulk item`,
+        });
+
+        // Refresh products to include the new bulk item
+        queryClient.invalidateQueries({ queryKey: ["/api/products/all"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      } else {
+        throw new Error("Failed to create bulk item");
+      }
+    } catch (error) {
+      toast({
+        title: "Error Creating Bulk Item",
+        description: error instanceof Error ? error.message : "Unknown error occurred",
+        variant: "destructive",
+      });
+    }
+  };
+
+
+  // State for dynamic GST calculations
+  const [gstBreakdown, setGstBreakdown] = useState({ cgst: 0, sgst: 0, igst: 0, cess: 0, total: 0, isInterState: false });
+  const [isIntraState, setIsIntraState] = useState(true);
+
+  // Dynamic GST calculation and display
+  const calculateTotalGST = () => {
+    const cgst = parseFloat(watchedValues.cgstRate || '0');
+    const sgst = parseFloat(watchedValues.sgstRate || '0');
+    const igst = parseFloat(watchedValues.igstRate || '0');
+    const cess = parseFloat(watchedValues.cessRate || '0');
+
+    if (igst > 0) {
+      return igst + cess;
+    } else {
+      return cgst + sgst + cess;
+    }
+  };
+
+
+
+  // Toggle between Intra-State and Inter-State GST
+  const toggleGSTType = () => {
+    const newIsIntraState = !isIntraState;
+    setIsIntraState(newIsIntraState);
+
+    const totalRate = calculateTotalGST();
+
+    if (newIsIntraState) {
+      // Split into CGST + SGST
+      const half = totalRate / 2;
+      form.setValue('cgstRate', half.toString());
+      form.setValue('sgstRate', half.toString());
+      form.setValue('igstRate', '0');
+    } else {
+      // Combine into IGST
+      form.setValue('igstRate', totalRate.toString());
+      form.setValue('cgstRate', '0');
+      form.setValue('sgstRate', '0');
+    }
+  };
+
+
+
+  // Enhanced dynamic data uploading and form synchronization for edit mode
+  useEffect(() => {
+    if (isEditMode && editingProduct && !isLoadingProduct && categories.length > 0 && suppliers.length > 0) {
+      console.log('🔄 Dynamic data upload - Populating edit form with product data:', editingProduct);
+
+      // Enhanced GST calculation with better accuracy
+      const cgstRate = parseFloat(editingProduct.cgstRate?.toString() || '0');
+      const sgstRate = parseFloat(editingProduct.sgstRate?.toString() || '0');
+      const igstRate = parseFloat(editingProduct.igstRate?.toString() || '0');
+      const cessRate = parseFloat(editingProduct.cessRate?.toString() || '0');
+      const totalGst = cgstRate + sgstRate + igstRate + cessRate;
+
+      // Dynamic GST code determination with better mapping
+      let gstCode = 'GST 18%'; // Default
+      if (totalGst === 0) gstCode = 'GST 0%';
+      else if (totalGst === 5) gstCode = 'GST 5%';
+      else if (totalGst === 12) gstCode = 'GST 12%';
+      else if (totalGst === 18) gstCode = 'GST 18%';
+      else if (totalGst === 28) gstCode = 'GST 28%';
+      else if (totalGst > 0) gstCode = `GST ${totalGst}%`; // Custom rate
+
+      // Dynamic category resolution
+      const category = categories.find((cat: any) => cat.id === editingProduct.categoryId);
+      console.log('📂 Dynamic category mapping:', { categoryId: editingProduct.categoryId, category: category?.name });
+
+      // Enhanced manufacturer and supplier resolution
+      const matchedManufacturer = suppliers.find((sup: any) =>
+        sup.name === editingProduct.manufacturerName ||
+        sup.id === editingProduct.manufacturerId
+      );
+      const matchedSupplier = suppliers.find((sup: any) =>
+        sup.name === editingProduct.supplierName ||
+        sup.id === editingProduct.supplierId
+      );
+
+      console.log('🏭 Dynamic manufacturer/supplier mapping:', {
+        manufacturerName: editingProduct.manufacturerName,
+        supplierName: editingProduct.supplierName,
+        matchedManufacturer: matchedManufacturer?.name,
+        matchedSupplier: matchedSupplier?.name
+      });
+
+      // Comprehensive form data with enhanced field mapping
+      const formData = {
+        // Item Information - Enhanced with proper supplier matching
+        itemCode: editingProduct.sku || "",
+        itemName: editingProduct.name || "",
+        manufacturerName: matchedManufacturer?.name || editingProduct.manufacturerName || "",
+        supplierName: matchedSupplier?.name || editingProduct.supplierName || "",
+        alias: editingProduct.alias || "",
+        aboutProduct: editingProduct.description || "",
+
+        // Category Information - Dynamic
+        itemProductType: editingProduct.itemProductType || "Standard",
+        department: editingProduct.department || "",
+        mainCategory: category?.name || "",
+        subCategory: editingProduct.subCategory || "",
+        brand: editingProduct.brand || "",
+        buyer: editingProduct.buyer || "",
+
+        // Tax Information - Enhanced with dynamic calculation
+        hsnCode: editingProduct.hsnCode || "",
+        gstCode: gstCode,
+        purchaseGstCalculatedOn: editingProduct.purchaseGstCalculatedOn || "MRP",
+        gstUom: editingProduct.gstUom || "PIECES",
+        purchaseAbatement: editingProduct.purchaseAbatement || "",
+        configItemWithCommodity: editingProduct.configItemWithCommodity || false,
+        seniorExemptApplicable: editingProduct.seniorExemptApplicable || false,
+        cgstRate: editingProduct.cgstRate?.toString() || "0",
+        sgstRate: editingProduct.sgstRate?.toString() || "0",
+        igstRate: editingProduct.igstRate?.toString() || "0",
+        cessRate: editingProduct.cessRate?.toString() || "0",
+        taxCalculationMethod: editingProduct.taxCalculationMethod || "exclusive",
+
+        // EAN Code/Barcode - Enhanced
+        eanCodeRequired: editingProduct.eanCodeRequired || false,
+        barcode: editingProduct.barcode || "",
+        barcodeType: editingProduct.barcodeType || "ean13",
+
+        // Weight & Packing - Comprehensive
+        weightsPerUnit: editingProduct.weightsPerUnit || "1",
+        bulkWeight: editingProduct.bulkWeight || "",
+        bulkWeightUnit: editingProduct.bulkWeightUnit || "kg",
+        packingType: editingProduct.packingType || "Bulk",
+        unitsPerPack: editingProduct.unitsPerPack || "1",
+        batchExpiryDetails: editingProduct.batchExpiryDetails || "Not Required",
+        itemPreparationsStatus: editingProduct.itemPreparationsStatus || "Trade As Is",
+        grindingCharge: editingProduct.grindingCharge || "",
+        weightInGms: editingProduct.weightInGms || "",
+        bulkItemName: editingProduct.bulkItemName || "",
+        repackageUnits: editingProduct.repackageUnits || "",
+        repackageType: editingProduct.repackageType || "",
+        packagingMaterial: editingProduct.packagingMaterial || "",
+
+        // Item Properties - Enhanced
+        decimalPoint: editingProduct.decimalPoint || "0",
+        productType: editingProduct.productType || "NA",
+        perishableItem: editingProduct.perishableItem || false,
+        temperatureControlled: editingProduct.temperatureControlled || false,
+        fragileItem: editingProduct.fragileItem || false,
+        trackSerialNumbers: editingProduct.trackSerialNumbers || false,
+
+        // Pricing - Dynamic calculation support
+        sellBy: editingProduct.sellBy || "None",
+        itemPerUnit: editingProduct.itemPerUnit || "1",
+        maintainSellingMrpBy: editingProduct.maintainSellingMrpBy || "Multiple Selling Price & Multiple MRP",
+        batchSelection: editingProduct.batchSelection || "Not Applicable",
+        isWeighable: editingProduct.isWeighable || false,
+        price: editingProduct.price?.toString() || "",
+        mrp: editingProduct.mrp?.toString() || "",
+        cost: editingProduct.cost?.toString() || "",
+        wholesalePrice: editingProduct.wholesalePrice?.toString() || "",
+
+        // Reorder Configurations
+        skuType: editingProduct.skuType || "Put Away",
+        indentType: editingProduct.indentType || "Manual",
+        gateKeeperMargin: editingProduct.gateKeeperMargin || "",
+        allowItemFree: editingProduct.allowItemFree || false,
+
+        // Mobile App Configurations
+        showOnMobileDashboard: editingProduct.showOnMobileDashboard || false,
+        enableMobileNotifications: editingProduct.enableMobileNotifications || false,
+        quickAddToCart: editingProduct.quickAddToCart || false,
+
+        // Compliance Information
+        fdaApproved: editingProduct.fdaApproved || false,
+        bisCertified: editingProduct.bisCertified || false,
+        organicCertified: editingProduct.organicCertified || false,
+
+        // Additional Information
+        itemIngredients: editingProduct.itemIngredients || "",
+        weight: editingProduct.weight ? editingProduct.weight.toString() : "",
+        weightUnit: editingProduct.weightUnit || "kg",
+        categoryId: editingProduct.categoryId || categories[0]?.id || 1,
+        stockQuantity: editingProduct.stockQuantity?.toString() || "0",
+        active: editingProduct.active !== false,
+      };
+
+      console.log('✅ Dynamic form data prepared:', formData);
+      console.log('🔄 Uploading overall data dynamically to form...');
+
+      // Apply the dynamic data upload
+      form.reset(formData);
+
+      // Trigger reactive updates for dependent fields
+      setTimeout(() => {
+        console.log('🔄 Triggering reactive field updates...');
+        // Ensure category selection triggers dependent updates
+        if (category?.name) {
+          form.setValue("mainCategory", category.name);
+          form.setValue("categoryId", category.id);
+        }
+
+        // Update GST breakdown display
+        form.setValue("gstCode", gstCode);
+
+        console.log('✅ Dynamic data upload completed successfully');
+      }, 100);
+    }
+  }, [isEditMode, editingProduct, isLoadingProduct, categories, suppliers, form]);
+
+  // Dynamic data synchronization watcher
+  useEffect(() => {
+    if (isEditMode && editingProduct) {
+      console.log('🔄 Dynamic data sync active for product ID:', editId);
+
+      // Watch for form changes and log them
+      const subscription = form.watch((value, { name, type }) => {
+        if (type === 'change' && name) {
+          console.log(`📝 Dynamic field update: ${name} = ${value[name]}`);
+        }
+      });
+
+      return () => subscription.unsubscribe();
+    }
+  }, [isEditMode, editingProduct, form, editId]);
+
+  // Update item code automatically when the page loads (only for create mode)
+  useEffect(() => {
+    if (!isEditMode) {
+      const currentItemCode = form.getValues('itemCode');
+      // Auto-fill if empty, or if it's a fallback '1' while we have real products loaded,
+      // or if it looks like an old legacy random ID (length 9)
+      const isInitialFallback = currentItemCode === "1" && allProducts && allProducts.length > 0;
+      const isOldLegacyCode = currentItemCode?.length === 9 && !currentItemCode.startsWith('ITM');
+
+      if (!currentItemCode || isInitialFallback || isOldLegacyCode) {
+        fetchNextItemCode();
+      }
+    }
+  }, [isEditMode, allProducts, form]);
+
+  // Enhanced Create/Update product mutation with dynamic data handling
+  const createProductMutation = useMutation({
+    mutationFn: async (data: ProductFormValues) => {
+      console.log('🚀 Starting product mutation with enhanced data:', data);
+      console.log(`📊 ${isEditMode ? 'Updating' : 'Creating'} product with dynamic validation...`);
+
+      // Enhanced validation for required fields with better error messages
+      const requiredFields = [];
+      if (!data.itemName?.trim()) requiredFields.push("Item Name");
+      if (!data.itemCode?.trim()) requiredFields.push("Item Code");
+      if (!data.price?.trim()) requiredFields.push("Price");
+
+      if (requiredFields.length > 0) {
+        throw new Error(`Please fill in all required fields: ${requiredFields.join(", ")}`);
+      }
+
+      // Enhanced numeric validation with dynamic checks
+      const price = parseFloat(data.price);
+      const mrp = data.mrp ? parseFloat(data.mrp) : price;
+      const cost = data.cost ? parseFloat(data.cost) : 0;
+      const wholesalePrice = data.wholesalePrice ? parseFloat(data.wholesalePrice) : null;
+      const stockQuantity = data.stockQuantity ? parseFloat(data.stockQuantity) : 0;
+
+      // Dynamic validation checks
+      const validationErrors = [];
+      if (isNaN(price) || price <= 0) validationErrors.push("Price must be a valid positive number");
+      if (isNaN(stockQuantity) || stockQuantity < 0) validationErrors.push("Stock quantity must be a valid positive number");
+      if (mrp > 0 && mrp < price) validationErrors.push("MRP cannot be less than selling price");
+      if (cost > 0 && price < cost) validationErrors.push("Selling price should typically be higher than cost price");
+      if (wholesalePrice && cost > 0 && wholesalePrice < cost) validationErrors.push("Wholesale price should typically be higher than cost price");
+      if (wholesalePrice && wholesalePrice > price) validationErrors.push("Wholesale price should typically be lower than retail price");
+
+      if (validationErrors.length > 0) {
+        throw new Error(validationErrors.join("; "));
+      }
+
+      console.log('✅ Dynamic validation passed successfully');
+
+      // Enhanced product data with all form fields
+      const productData = {
+        name: data.itemName.trim(),
+        sku: data.itemCode.trim(),
+        description: data.aboutProduct?.trim() || "",
+        price: price.toString(),
+        mrp: mrp.toString(),
+        cost: cost.toString(),
+        wholesalePrice: wholesalePrice ? wholesalePrice.toString() : null,
+        weight: data.weight ? data.weight.toString() : null,
+        weightUnit: data.weightUnit || "kg",
+        stockQuantity: stockQuantity.toString(),
+        categoryId: data.categoryId || null,
+        barcode: data.barcode?.trim() || "",
+        active: data.active !== undefined ? data.active : true,
+        alertThreshold: "5",
+        hsnCode: data.hsnCode?.trim() || "",
+
+        // Enhanced tax breakdown for better synchronization
+        cgstRate: data.cgstRate || "0",
+        sgstRate: data.sgstRate || "0",
+        igstRate: data.igstRate || "0",
+        cessRate: data.cessRate || "0",
+        taxCalculationMethod: data.taxCalculationMethod || "exclusive",
+
+        // Enhanced fields for comprehensive data storage with supplier ID resolution
+        manufacturerName: data.manufacturerName?.trim() || "",
+        supplierName: data.supplierName?.trim() || "",
+        manufacturerId: suppliers.find((sup: any) => sup.name === data.manufacturerName?.trim())?.id || null,
+        supplierId: suppliers.find((sup: any) => sup.name === data.supplierName?.trim())?.id || null,
+        alias: data.alias?.trim() || "",
+        itemProductType: data.itemProductType || "Standard",
+        department: data.department?.trim() || "",
+        brand: data.brand?.trim() || "",
+        buyer: data.buyer?.trim() || "",
+        purchaseGstCalculatedOn: data.purchaseGstCalculatedOn || "MRP",
+        gstUom: data.gstUom || "PIECES",
+        purchaseAbatement: data.purchaseAbatement?.trim() || "",
+        configItemWithCommodity: data.configItemWithCommodity || false,
+        seniorExemptApplicable: data.seniorExemptApplicable || false,
+        eanCodeRequired: data.eanCodeRequired || false,
+        weightsPerUnit: data.weightsPerUnit || "1",
+        batchExpiryDetails: data.batchExpiryDetails || "Not Required",
+        itemPreparationsStatus: data.itemPreparationsStatus || "Trade As Is",
+        grindingCharge: data.grindingCharge?.trim() || "",
+        weightInGms: data.weightInGms?.trim() || "",
+        bulkItemName: data.bulkItemName?.trim() || "",
+        repackageUnits: data.repackageUnits?.trim() || "",
+        repackageType: data.repackageType?.trim() || "",
+        packagingMaterial: data.packagingMaterial?.trim() || "",
+        decimalPoint: data.decimalPoint || "0",
+        productType: data.productType || "NA",
+        sellBy: data.sellBy || "None",
+        itemPerUnit: data.itemPerUnit || "1",
+        maintainSellingMrpBy: data.maintainSellingMrpBy || "Multiple Selling Price & Multiple MRP",
+        batchSelection: data.batchSelection || "Not Applicable",
+        isWeighable: data.isWeighable || false,
+        skuType: data.skuType || "Put Away",
+        indentType: data.indentType || "Manual",
+        gateKeeperMargin: data.gateKeeperMargin?.trim() || "",
+        allowItemFree: data.allowItemFree || false,
+        showOnMobileDashboard: data.showOnMobileDashboard || false,
+        enableMobileNotifications: data.enableMobileNotifications || false,
+        quickAddToCart: data.quickAddToCart || false,
+        perishableItem: data.perishableItem || false,
+        temperatureControlled: data.temperatureControlled || false,
+        fragileItem: data.fragileItem || false,
+        trackSerialNumbers: data.trackSerialNumbers || false,
+        fdaApproved: data.fdaApproved || false,
+        bisCertified: data.bisCertified || false,
+        organicCertified: data.organicCertified || false,
+        itemIngredients: data.itemIngredients?.trim() || "",
+      };
+
+      console.log('Submitting enhanced product data:', productData);
+
+      const method = isEditMode ? "PUT" : "POST";
+      const url = isEditMode ? `/api/products/${editId}` : "/api/products";
+
+      try {
+        const res = await apiRequest(method, url, productData);
+
+        if (!res.ok) {
+          let errorMessage = `Failed to ${isEditMode ? 'update' : 'create'} product`;
+          try {
+            const errorData = await res.json();
+            errorMessage = errorData.message || errorMessage;
+            console.error('Server error response:', errorData);
+          } catch {
+            errorMessage = `HTTP ${res.status}: ${res.statusText}`;
+          }
+          throw new Error(errorMessage);
+        }
+
+        const result = await res.json();
+        console.log('Product operation successful:', result);
+        return result;
+      } catch (error) {
+        console.error('Product operation error:', error);
+        throw error;
+      }
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+
+      if (isEditMode) {
+        toast({
+          title: "Success! 🎉",
+          description: `Product "${data.name}" updated successfully`,
+          action: (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setLocation("/add-item-dashboard")}
+            >
+              View Dashboard
+            </Button>
+          ),
+        });
+      } else {
+        form.reset({
+          itemCode: allProducts ? generateItemCode() : generateFallbackItemCode(),
+          itemName: "",
+          manufacturerName: "",
+          supplierName: "",
+          alias: "",
+          aboutProduct: "",
+          itemProductType: "Standard",
+          department: "",
+          mainCategory: "",
+          subCategory: "",
+          brand: "",
+          buyer: "",
+          hsnCode: "",
+          gstCode: "GST 12%",
+          purchaseGstCalculatedOn: "MRP",
+          gstUom: "PIECES",
+          purchaseAbatement: "",
+          configItemWithCommodity: false,
+          seniorExemptApplicable: false,
+          eanCodeRequired: false,
+          barcode: "",
+          weightsPerUnit: "1",
+          batchExpiryDetails: "Not Required",
+          itemPreparationsStatus: "Trade As Is",
+          grindingCharge: "",
+          weightInGms: "",
+          bulkItemName: "",
+          repackageUnits: "",
+          repackageType: "",
+          packagingMaterial: "",
+          decimalPoint: "0",
+          productType: "NA",
+          sellBy: "None",
+          itemPerUnit: "1",
+          maintainSellingMrpBy: "Multiple Selling Price & Multiple MRP",
+          batchSelection: "Not Applicable",
+          isWeighable: false,
+          skuType: "Put Away",
+          indentType: "Manual",
+          gateKeeperMargin: "",
+          allowItemFree: false,
+          showOnMobileDashboard: false,
+          enableMobileNotifications: false,
+          quickAddToCart: false,
+          perishableItem: false,
+          temperatureControlled: false,
+          fragileItem: false,
+          trackSerialNumbers: false,
+          fdaApproved: false,
+          bisCertified: false,
+          organicCertified: false,
+          itemIngredients: "",
+          price: "",
+          mrp: "",
+          cost: "",
+          weight: "",
+          weightUnit: "kg",
+          categoryId: categories[0]?.id || 1,
+          stockQuantity: "0",
+          active: true,
+        });
+
+        toast({
+          title: "Success! 🎉",
+          description: `Product "${data.name}" created successfully with SKU: ${data.sku}`,
+          action: (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setLocation("/add-item-dashboard")}
+            >
+              View Dashboard
+            </Button>
+          ),
+        });
+      }
+    },
+    onError: (error: Error) => {
+      console.error("Product operation error:", error);
+      toast({
+        title: `Error ${isEditMode ? 'Updating' : 'Creating'} Product`,
+        description: error.message || "Please check all required fields and try again",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const rawSidebarSections = [
+    { id: "item-information", label: "Item Information", icon: <InfoIcon className="w-4 h-4" /> },
+    { id: "category-information", label: "Category Information", icon: <TagIcon className="w-4 h-4" /> },
+    { id: "tax-information", label: "Tax Information", icon: <DollarSignIcon className="w-4 h-4" /> },
+    { id: "ean-code-barcode", label: "EAN Code/Barcode", icon: <BarChart3Icon className="w-4 h-4" /> },
+    { id: "packing", label: "Packing", icon: <BoxIcon className="w-4 h-4" /> },
+    { id: "item-properties", label: "Item Properties", icon: <SettingsIcon className="w-4 h-4" /> },
+    { id: "pricing", label: "Pricing", icon: <DollarSignIcon className="w-4 h-4" /> },
+    { id: "reorder-configurations", label: "Reorder Configurations", icon: <PackageIcon className="w-4 h-4" /> },
+  ];
+
+  // Filter sections based on system-wide toggles
+  const sidebarSections = rawSidebarSections.filter(section => {
+    // Check if the specific section has been disabled in settings
+    return enabledModules[`/add-item-professional#${section.id}`] !== false;
+  });
+
+  // Ensure currentSection is valid when sections change
+  useEffect(() => {
+    if (sidebarSections.length > 0) {
+      const isCurrentValid = sidebarSections.some(s => s.id === currentSection);
+      if (!isCurrentValid) {
+        setCurrentSection(sidebarSections[0].id);
+      }
+    }
+  }, [sidebarSections, currentSection]);
+
+  // Enhanced loading state with dynamic upload progress
+  if (isEditMode && (isLoadingProduct || isLoadingSuppliers)) {
+    return (
+      <DashboardLayout>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center max-w-md mx-auto">
+            <div className="bg-white p-8 rounded-lg shadow-lg border">
+              <Loader2Icon className="w-12 h-12 animate-spin mx-auto mb-4 text-blue-600" />
+              <h2 className="text-xl font-semibold mb-2">Loading Product Data...</h2>
+              <p className="text-gray-600 mb-4">Uploading overall data dynamically for edit mode including suppliers</p>
+
+              {/* Dynamic progress indicator */}
+              <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+                <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{ width: '70%' }}></div>
+              </div>
+
+              <div className="text-sm text-gray-500 space-y-1">
+                <div className="flex items-center justify-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${!isLoadingProduct ? 'bg-green-500' : 'bg-blue-500 animate-pulse'}`}></div>
+                  <span>Fetching product information...</span>
+                </div>
+                <div className={`flex items-center justify-center gap-2`}>
+                  <div className={`w-2 h-2 rounded-full ${!isLoadingSuppliers ? 'bg-green-500' : 'bg-blue-500 animate-pulse'}`}></div>
+                  <span>Loading suppliers data...</span>
+                </div>
+                <div className={`flex items-center justify-center gap-2`}>
+                  <div className={`w-2 h-2 rounded-full ${!isLoadingCategories ? 'bg-green-500' : 'bg-blue-500 animate-pulse'}`}></div>
+                  <span>Loading categories data...</span>
+                </div>
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
+                  <span>Preparing dynamic form...</span>
+                </div>
+              </div>
+
+              <p className="text-xs text-gray-400 mt-4">Product ID: {editId}</p>
+            </div>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Show error state if product fetch failed
+  if (isEditMode && productError) {
+    return (
+      <DashboardLayout>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+              <XIcon className="w-4 h-4 text-red-600" />
+            </div>
+            <h2 className="text-lg font-semibold text-red-800">Failed to Load Product</h2>
+            <p className="text-gray-600 mb-4">Could not fetch product data for editing.</p>
+            <Button onClick={() => setLocation("/add-item-dashboard")} variant="outline">
+              Back to Dashboard
+            </Button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  return (
+    <DashboardLayout>
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-white border-b">
+          <div className="flex items-center justify-between px-6 py-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                {isEditMode ? <EditIcon className="w-4 h-4 text-blue-600" /> : <PackageIcon className="w-4 h-4 text-blue-600" />}
+              </div>
+              <div className="flex items-center gap-3">
+                <h1 className="text-xl font-semibold">
+                  {isEditMode ? "Edit Item" : "Add Item"}
+                </h1>
+                {isEditMode && (
+                  <Badge variant="secondary" className="bg-orange-100 text-orange-700">
+                    <EditIcon className="w-3 h-3 mr-1" />
+                    Edit Mode
+                  </Badge>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <div className="text-sm text-gray-500">{isEditMode ? "Edit Mode" : "Add New Item"}</div>
+                <div className="text-lg font-semibold text-blue-600">Professional System</div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={refreshAllData}
+                disabled={isLoadingSuppliers || isLoadingCategories || isLoadingProducts}
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${isLoadingSuppliers || isLoadingCategories || isLoadingProducts ? 'animate-spin' : ''}`} />
+                Refresh Data
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex">
+          {/* Sidebar Navigation */}
+          {/* Sidebar Navigation */}
+          <div className="w-64 bg-white border-r sticky top-0 self-start h-[calc(100vh-4rem)] overflow-y-auto hidden md:block">
+            <div className="p-4">
+              <Tabs value="general-information" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-4">
+                  <TabsTrigger value="general-information" className="text-xs">General Information</TabsTrigger>
+                  <TabsTrigger value="outlet-specific" className="text-xs">Outlet Specific</TabsTrigger>
+                </TabsList>
+              </Tabs>
+
+              {/* Progress Indicator */}
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                <div className="text-xs text-gray-600 mb-2">
+                  Section {sidebarSections.findIndex(s => s.id === currentSection) + 1} of {sidebarSections.length}
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{
+                      width: `${((sidebarSections.findIndex(s => s.id === currentSection) + 1) / sidebarSections.length) * 100}%`
+                    }}
+                  ></div>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                {sidebarSections.map((section, index) => {
+                  const isCompleted = sidebarSections.findIndex(s => s.id === currentSection) > index;
+                  const isCurrent = currentSection === section.id;
+
+                  // Define fields for each section to check for errors
+                  const sectionFields: Record<string, string[]> = {
+                    "item-information": ["itemCode", "itemName", "manufacturerName", "supplierName"],
+                    "category-information": ["categoryId", "itemProductType"],
+                    "tax-information": ["hsnCode", "gstCode", "cgstRate", "sgstRate"],
+                    "packing": ["weightsPerUnit", "itemPreparationsStatus", "bulkItemName"],
+                    "pricing": ["price", "mrp", "cost", "wholesalePrice"],
+                    "other-information": ["itemIngredients"]
+                  };
+
+                  const fields = sectionFields[section.id] || [];
+                  const hasError = fields.some(field => !!form.formState.errors[field as keyof ProductFormValues]);
+
+                  return (
+                    <button
+                      key={section.id}
+                      onClick={() => setCurrentSection(section.id)}
+                      className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors ${isCurrent
+                        ? "bg-blue-50 text-blue-700 border-l-4 border-blue-700"
+                        : isCompleted
+                          ? "text-green-600 hover:bg-green-50"
+                          : "text-gray-600 hover:bg-gray-50"
+                        }`}
+                    >
+                      {section.icon}
+                      <span className="flex-1 text-left">{section.label}</span>
+
+                      {/* Section status indicators */}
+                      {isCurrent && (
+                        <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
+                      )}
+                      {isCompleted && !isCurrent && !hasError && (
+                        <CheckIcon className="w-4 h-4 text-green-600" />
+                      )}
+                      {hasError && !isCurrent && (
+                        <div className="w-2 h-2 bg-orange-500 rounded-full animate-bounce" title="Mandatory fields missing"></div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Quick Actions */}
+              <div className="mt-6 pt-4 border-t">
+                <div className="text-xs text-gray-500 mb-2">Quick Actions</div>
+                <div className="space-y-1">
+                  <button
+                    onClick={() => setCurrentSection("item-information")}
+                    className="w-full text-left px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded"
+                  >
+                    Go to Start
+                  </button>
+                  <button
+                    onClick={() => {
+                      const lastSection = sidebarSections[sidebarSections.length - 1];
+                      setCurrentSection(lastSection.id);
+                    }}
+                    className="w-full text-left px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded"
+                  >
+                    Skip to End
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Main Content */}
+          <div className="flex-1 p-6">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit((data) => {
+                console.log("Form submission data:", data);
+
+                // Additional validation for repackaging
+                if (data.itemPreparationsStatus === "Repackage") {
+                  if (!data.bulkItemName) {
+                    toast({
+                      title: "Validation Error",
+                      description: "Please select a bulk item for repackaging",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  if (!data.weightInGms) {
+                    toast({
+                      title: "Validation Error",
+                      description: "Please specify the weight for repackaged units",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                }
+
+                createProductMutation.mutate(data);
+              })} className="space-y-6">
+
+                {/* Item Information Section */}
+                {currentSection === "item-information" && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <InfoIcon className="w-5 h-5" />
+                        Item Information
+                        {isEditMode && (
+                          <Badge variant="outline" className="ml-2 text-xs">
+                            Editing: {editingProduct?.name}
+                          </Badge>
+                        )}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="grid grid-cols-2 gap-6">
+                        <FormField
+                          control={form.control}
+                          name="itemCode"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Item Code *</FormLabel>
+                              <FormControl>
+                                <div className="flex gap-2">
+                                  <Input {...field} placeholder="Auto-generated code" />
+                                  {!isEditMode && (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={fetchNextItemCode}
+                                      className="whitespace-nowrap"
+                                    >
+                                      Generate New
+                                    </Button>
+                                  )}
+                                </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <div />
+                      </div>
+
+                      <FormField
+                        control={form.control}
+                        name="itemName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Item Name *</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="BUCKET 4" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <div className="grid grid-cols-2 gap-6">
+                        <FormField
+                          control={form.control}
+                          name="manufacturerName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="flex justify-between items-center w-full">
+                                Manufacturer Name *
+                                <Button 
+                                  type="button" 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="h-6 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    setAddSupplierType("manufacturer");
+                                    setIsAddSupplierOpen(true);
+                                  }}
+                                >
+                                  <PlusIcon className="w-4 h-4 mr-1" />
+                                  New
+                                </Button>
+                              </FormLabel>
+                              <FormControl>
+                                <Select
+                                  onValueChange={(value) => {
+                                    field.onChange(value);
+                                  }}
+                                  value={field.value}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select manufacturer" />
+                                  </SelectTrigger>
+                                    <SelectContent>
+                                      {isLoadingSuppliers ? (
+                                        <SelectItem value="loading" disabled>Loading suppliers...</SelectItem>
+                                      ) : suppliers.length > 0 ? (
+                                        suppliers
+                                          .filter((s: Supplier) => !s.supplierType || s.supplierType.toLowerCase() === 'manufacturer' || s.supplierType.toLowerCase() !== 'supplier')
+                                          .map((supplier: Supplier) => (
+                                          <SelectItem key={supplier.id} value={supplier.name}>
+                                            <div className="flex items-center justify-between w-full">
+                                              <span>{supplier.name}</span>
+                                              {supplier.city && (
+                                                <span className="text-xs text-gray-500 ml-2">
+                                                  {supplier.city}
+                                                </span>
+                                              )}
+                                            </div>
+                                          </SelectItem>
+                                        ))
+                                      ) : (
+                                        <SelectItem value="no-suppliers" disabled>No suppliers available</SelectItem>
+                                      )}
+                                    </SelectContent>
+                                </Select>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="supplierName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="flex justify-between items-center w-full">
+                                Supplier Name *
+                                <Button 
+                                  type="button" 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="h-6 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    setAddSupplierType("supplier");
+                                    setIsAddSupplierOpen(true);
+                                  }}
+                                >
+                                  <PlusIcon className="w-4 h-4 mr-1" />
+                                  New
+                                </Button>
+                              </FormLabel>
+                              <FormControl>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select supplier" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {isLoadingSuppliers ? (
+                                      <SelectItem value="loading" disabled>Loading suppliers...</SelectItem>
+                                    ) : suppliers.length > 0 ? (
+                                      suppliers
+                                        .filter((s: Supplier) => !s.supplierType || s.supplierType.toLowerCase() === 'supplier' || s.supplierType.toLowerCase() !== 'manufacturer')
+                                        .map((supplier: Supplier) => (
+                                        <SelectItem key={supplier.id} value={supplier.name}>
+                                          <div className="flex items-center justify-between w-full">
+                                            <span>{supplier.name}</span>
+                                            <div className="text-xs text-gray-500 ml-2">
+                                              {supplier.phone && <div>📞 {supplier.phone}</div>}
+                                              {supplier.email && <div>✉️ {supplier.email}</div>}
+                                            </div>
+                                          </div>
+                                        </SelectItem>
+                                      ))
+                                    ) : (
+                                      <SelectItem value="no-suppliers" disabled>No suppliers available</SelectItem>
+                                    )}
+                                  </SelectContent>
+                                </Select>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Category Information Section */}
+                {currentSection === "category-information" && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <TagIcon className="w-5 h-5" />
+                        Category Information
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <FormField
+                        control={form.control}
+                        name="itemProductType"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Item Product Type</FormLabel>
+                            <FormControl>
+                              <div className="flex items-center gap-2">
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                  <SelectTrigger className="flex-1">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {isLoadingItemProductTypes ? (
+                                      <SelectItem value="loading" disabled>Loading...</SelectItem>
+                                    ) : itemProductTypes.length > 0 ? (
+                                      itemProductTypes.map(type => (
+                                        <SelectItem key={type.id} value={type.name}>{type.name}</SelectItem>
+                                      ))
+                                    ) : (
+                                      <>
+                                        <SelectItem value="Standard">Standard</SelectItem>
+                                        <SelectItem value="Bundle">Bundle</SelectItem>
+                                        <SelectItem value="Service">Service</SelectItem>
+                                      </>
+                                    )}
+                                  </SelectContent>
+                                </Select>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon"
+                                  className="shrink-0"
+                                  onClick={() => setIsAddItemTypeOpen(true)}
+                                >
+                                  <PlusIcon className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <div className="border-t pt-4">
+                        <div className="flex items-center gap-2 mb-4">
+                          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                          <h3 className="text-blue-600 font-medium">Category</h3>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-6">
+                          <FormField
+                            control={form.control}
+                            name="department"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-sm font-medium text-gray-700">DEPARTMENT *</FormLabel>
+                                <FormControl>
+                                  <div className="flex items-center gap-2">
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                      <SelectTrigger className="h-10 flex-1">
+                                        <SelectValue placeholder="Select department" />
+                                      </SelectTrigger>
+                                      <SelectContent className="max-h-64 overflow-y-auto">
+                                        {isLoadingDepartments ? (
+                                          <SelectItem value="loading" disabled>Loading...</SelectItem>
+                                        ) : departments.length > 0 ? (
+                                          departments.map((dept) => (
+                                            <SelectItem key={dept.id} value={dept.name}>
+                                              <div className="flex items-center gap-2">
+                                                <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                                                {dept.name}
+                                              </div>
+                                            </SelectItem>
+                                          ))
+                                        ) : (
+                                          <SelectItem value="none" disabled>No departments configured</SelectItem>
+                                        )}
+                                      </SelectContent>
+                                    </Select>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="icon"
+                                      className="shrink-0 h-10 w-10"
+                                      onClick={() => setIsAddDeptOpen(true)}
+                                    >
+                                      <PlusIcon className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="mainCategory"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-sm font-medium text-gray-700">MAIN CATEGORY</FormLabel>
+                                <FormControl>
+                                  <div className="flex items-center gap-2">
+                                    <Select
+                                      onValueChange={(value) => {
+                                        field.onChange(value);
+                                        // Also update the categoryId for the backend
+                                        const category = categories.find((cat: any) => cat.name === value);
+                                        if (category) {
+                                          form.setValue("categoryId", category.id);
+                                        }
+                                      }}
+                                      value={field.value}
+                                    >
+                                      <SelectTrigger className="h-10 flex-1">
+                                        <SelectValue placeholder="Select main category" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {categories.map((category: any) => (
+                                          <SelectItem key={category.id} value={category.name}>
+                                            {category.name}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="icon"
+                                      className="shrink-0 h-10 w-10"
+                                      onClick={() => setIsAddMainCategoryOpen(true)}
+                                    >
+                                      <PlusIcon className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Tax Information Section */}
+                {currentSection === "tax-information" && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <DollarSignIcon className="w-5 h-5" />
+                        Tax Information
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="grid grid-cols-2 gap-6">
+                        <FormField
+                          control={form.control}
+                          name="hsnCode"
+                          render={({ field }) => {
+                            const [open, setOpen] = useState(false);
+                            const [searchValue, setSearchValue] = useState("");
+
+                            return (
+                              <FormItem className="col-span-1 flex flex-col">
+                                <FormLabel>HSN Code</FormLabel>
+                                <Popover open={open} onOpenChange={setOpen}>
+                                  <PopoverTrigger asChild>
+                                    <FormControl>
+                                      <Button
+                                        variant="outline"
+                                        role="combobox"
+                                        aria-expanded={open}
+                                        className={cn(
+                                          "w-full justify-between font-mono",
+                                          !field.value && "text-muted-foreground"
+                                        )}
+                                      >
+                                        {field.value
+                                          ? field.value
+                                          : "Select or enter HSN code..."}
+                                        <ChevronsUpDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                      </Button>
+                                    </FormControl>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-[400px] p-0" align="start">
+                                    <Command>
+                                      <CommandInput
+                                        placeholder="Search HSN code or description..."
+                                        onValueChange={(val) => setSearchValue(val)}
+                                      />
+                                      <CommandList>
+                                        <CommandEmpty>
+                                          <div className="p-2">
+                                            <p className="text-sm text-muted-foreground mb-2">No HSN code found.</p>
+                                            <Button
+                                              variant="secondary"
+                                              size="sm"
+                                              className="w-full h-8"
+                                              onClick={() => {
+                                                form.setValue("hsnCode", searchValue);
+                                                setOpen(false);
+                                              }}
+                                            >
+                                              Use "{searchValue}"
+                                            </Button>
+                                          </div>
+                                        </CommandEmpty>
+                                        <CommandGroup>
+                                          {derivedHsnCodes.map((hsn) => (
+                                            <CommandItem
+                                              key={hsn.id || hsn.hsnCode}
+                                              value={`${hsn.hsnCode} ${hsn.description}`}
+                                              onSelect={() => {
+                                                form.setValue("hsnCode", hsn.hsnCode);
+
+                                                // Auto-set GST if linked
+                                                if (hsn.taxCategoryId) {
+                                                  // Find tax category
+                                                  const taxCat = taxCategories.find(tc => tc.id === hsn.taxCategoryId);
+                                                  if (taxCat) {
+                                                    form.setValue("gstCode", taxCat.name);
+                                                    const rate = Number(taxCat.rate);
+                                                    const cgstSgstRate = (rate / 2).toString();
+                                                    form.setValue("cgstRate", cgstSgstRate);
+                                                    form.setValue("sgstRate", cgstSgstRate);
+                                                    form.setValue("igstRate", "0");
+                                                  }
+                                                }
+
+                                                setOpen(false);
+                                              }}
+                                            >
+                                              <CheckIcon
+                                                className={cn(
+                                                  "mr-2 h-4 w-4",
+                                                  field.value === hsn.hsnCode
+                                                    ? "opacity-100"
+                                                    : "opacity-0"
+                                                )}
+                                              />
+                                              <div className="flex flex-col">
+                                                <span className="font-mono font-medium">{hsn.hsnCode}</span>
+                                                <span className="text-xs text-muted-foreground">{hsn.description}</span>
+                                              </div>
+                                            </CommandItem>
+                                          ))}
+
+
+                                        </CommandGroup>
+                                      </CommandList>
+                                    </Command>
+                                  </PopoverContent>
+                                </Popover>
+                                <FormMessage />
+
+                              </FormItem>
+                            );
+                          }}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="gstCode"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="flex items-center gap-2">
+                                Tax Category / GST Rate *
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-6 w-6 ml-2 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    setIsAddTaxOpen(true);
+                                  }}
+                                  title="Add New Tax Category"
+                                >
+                                  <PlusIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                </Button>
+                              </FormLabel>
+                              <FormControl>
+                                <Select
+                                  onValueChange={(val) => {
+                                    // Check if it matches a dynamic category ID
+                                    // We convert IDs to string for Select value compatibility
+                                    const selectedCat = taxCategories.find(c => c.id.toString() === val);
+
+                                    if (selectedCat) {
+                                      // It is a dynamic category
+                                      field.onChange(selectedCat.name);
+
+                                      // Auto-populate Description/HSN if available and empty
+                                      if (selectedCat.hsnCodeRange && !form.getValues('hsnCode')) {
+                                        form.setValue('hsnCode', selectedCat.hsnCodeRange.split('-')[0]);
+                                      }
+
+                                      // Update Tax Rates
+                                      if (parseFloat(selectedCat.rate.toString()) > 0) {
+                                        const cgstSgstRate = (parseFloat(selectedCat.rate.toString()) / 2).toString();
+                                        form.setValue("cgstRate", cgstSgstRate);
+                                        form.setValue("sgstRate", cgstSgstRate);
+                                        form.setValue("igstRate", "0");
+                                      } else {
+                                        form.setValue("cgstRate", "0");
+                                        form.setValue("sgstRate", "0");
+                                        form.setValue("igstRate", "0");
+                                      }
+                                    } else {
+                                      // Fallback for static values or legacy string manual input
+                                      field.onChange(val);
+
+                                      // Parse "GST 18%" format
+                                      const parsed = parseFloat(val.replace("GST ", "").replace("%", ""));
+                                      if (!isNaN(parsed) && parsed > 0) {
+                                        const cgstSgstRate = (parsed / 2).toString();
+                                        form.setValue("cgstRate", cgstSgstRate);
+                                        form.setValue("sgstRate", cgstSgstRate);
+                                        form.setValue("igstRate", "0");
+                                      } else {
+                                        form.setValue("cgstRate", "0");
+                                        form.setValue("sgstRate", "0");
+                                        form.setValue("igstRate", "0");
+                                      }
+                                    }
+                                  }}
+                                  value={(() => {
+                                    // Determine the correct value for the Select component
+                                    // If we have dynamic categories, we want to select by ID to differentiate duplicates
+                                    if (taxCategories.length > 0 && field.value) {
+                                      // Calculate current total rate from form to help disambiguate same-named categories
+                                      const currentCgst = parseFloat(form.getValues('cgstRate') || '0');
+                                      const currentSgst = parseFloat(form.getValues('sgstRate') || '0');
+                                      const currentIgst = parseFloat(form.getValues('igstRate') || '0');
+                                      const totalRate = currentIgst > 0 ? currentIgst : (currentCgst + currentSgst);
+
+                                      // Find category that matches Name AND Rate
+                                      const exactMatch = taxCategories.find(c => c.name === field.value && Math.abs(parseFloat(c.rate.toString()) - totalRate) < 0.1);
+                                      if (exactMatch) return exactMatch.id.toString();
+
+                                      // Fallback to Name only match
+                                      const nameMatch = taxCategories.find(c => c.name === field.value);
+                                      if (nameMatch) return nameMatch.id.toString();
+                                    }
+                                    return field.value || "";
+                                  })()}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select Tax Category" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {/* Dynamic Categories */}
+                                    {taxCategories.length > 0 ? (
+                                      taxCategories.map((cat: TaxCategory) => (
+                                        <SelectItem key={cat.id} value={cat.id.toString()}>
+                                          {cat.name} ({cat.rate}%)
+                                        </SelectItem>
+                                      ))
+                                    ) : (
+                                      <>
+                                        <SelectItem value="GST 0%">GST 0% - Nil Rate</SelectItem>
+                                        <SelectItem value="GST 5%">GST 5% - Essential</SelectItem>
+                                        <SelectItem value="GST 12%">GST 12% - Standard</SelectItem>
+                                        <SelectItem value="GST 18%">GST 18% - Standard</SelectItem>
+                                        <SelectItem value="GST 28%">GST 28% - Luxury</SelectItem>
+                                        <SelectItem value="EXEMPT">EXEMPT</SelectItem>
+                                      </>
+                                    )}
+                                  </SelectContent>
+                                </Select>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      {/* GST Breakdown Section */}
+                      <div className="border-t pt-6">
+                        <h4 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                          <span className="w-3 h-3 bg-blue-500 rounded-full"></span>
+                          GST Breakdown & Compliance
+                        </h4>
+
+                        {/* Dynamic Tax Summary Display */}
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg mb-4 border border-blue-200">
+                          <div className="grid grid-cols-4 gap-4 text-sm">
+                            <div className="text-center">
+                              <div className="text-blue-700 font-medium">Total GST Rate</div>
+                              <div className="text-xl font-bold text-blue-900">
+                                {calculateTotalGST().toFixed(2)}%
+                              </div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-blue-700 font-medium">CGST + SGST</div>
+                              <div className="text-lg font-bold text-blue-900">
+                                {parseFloat(watchedValues.cgstRate || "0").toFixed(2)}% + {parseFloat(watchedValues.sgstRate || "0").toFixed(2)}%
+                              </div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-blue-700 font-medium">IGST</div>
+                              <div className="text-lg font-bold text-blue-900">
+                                {parseFloat(watchedValues.igstRate || "0").toFixed(2)}%
+                              </div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-blue-700 font-medium">Cess</div>
+                              <div className="text-lg font-bold text-orange-600">
+                                {parseFloat(watchedValues.cessRate || "0").toFixed(2)}%
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Tax calculation indicator */}
+                          <div className="mt-3 pt-3 border-t border-blue-200">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-blue-600">
+                                Tax Method: {watchedValues.taxCalculationMethod || 'exclusive'}
+                              </span>
+                              <span className="text-green-600 bg-green-100 px-2 py-1 rounded">
+                                {parseFloat(watchedValues.igstRate || "0") > 0 ? 'Inter-State (IGST)' : 'Intra-State (CGST+SGST)'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-4">
+                          <FormField
+                            control={form.control}
+                            name="cgstRate"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>CGST Rate (%)</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    placeholder="9.00"
+                                    type="number"
+                                    step="0.01"
+                                    onChange={(e) => {
+                                      field.onChange(e.target.value);
+                                      // When CGST changes, update SGST to match and clear IGST
+                                      const cgstValue = e.target.value;
+                                      form.setValue("sgstRate", cgstValue);
+                                      form.setValue("igstRate", "0");
+                                    }}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="sgstRate"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>SGST Rate (%)</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    placeholder="9.00"
+                                    type="number"
+                                    step="0.01"
+                                    onChange={(e) => {
+                                      field.onChange(e.target.value);
+                                      // When SGST changes, update CGST to match and clear IGST
+                                      const sgstValue = e.target.value;
+                                      form.setValue("cgstRate", sgstValue);
+                                      form.setValue("igstRate", "0");
+                                    }}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="igstRate"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>IGST Rate (%)</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    placeholder="18.00"
+                                    type="number"
+                                    step="0.01"
+                                    onChange={(e) => {
+                                      field.onChange(e.target.value);
+                                      // When IGST is set, clear CGST and SGST
+                                      if (e.target.value && parseFloat(e.target.value) > 0) {
+                                        form.setValue("cgstRate", "0");
+                                        form.setValue("sgstRate", "0");
+                                      }
+                                    }}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-6 mt-4">
+                          <FormField
+                            control={form.control}
+                            name="taxCalculationMethod"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Tax Calculation Method</FormLabel>
+                                <FormControl>
+                                  <Select
+                                    onValueChange={(value) => {
+                                      field.onChange(value);
+                                      form.trigger("taxCalculationMethod");
+                                    }}
+                                    value={field.value || "exclusive"}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select method" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="inclusive">Tax Inclusive</SelectItem>
+                                      <SelectItem value="exclusive">Tax Exclusive</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="cessRate"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Cess Rate (%) - Optional</FormLabel>
+                                <FormControl>
+                                  <Input {...field} placeholder="0.00" type="number" step="0.01" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        {/* Tax Information Help */}
+                        <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                          <h5 className="font-medium text-yellow-800 mb-1">Tax Information Guidelines</h5>
+                          <ul className="text-sm text-yellow-700 space-y-1">
+                            <li>• For intra-state transactions: Use CGST + SGST</li>
+                            <li>• For inter-state transactions: Use IGST only</li>
+                            <li>• Total GST = CGST + SGST or IGST (whichever applicable)</li>
+                            <li>• HSN codes help determine the correct tax rates automatically</li>
+                          </ul>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-6">
+                        <FormField
+                          control={form.control}
+                          name="purchaseGstCalculatedOn"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Purchase GST Calculated On</FormLabel>
+                              <FormControl>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="MRP">MRP</SelectItem>
+                                    <SelectItem value="Cost">Cost</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="purchaseAbatement"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Purchase Abatement %</FormLabel>
+                              <FormControl>
+                                <Input {...field} placeholder="0" type="number" step="0.01" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      <FormField
+                        control={form.control}
+                        name="gstUom"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>GST UOM</FormLabel>
+                            <FormControl>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="PIECES">PIECES</SelectItem>
+                                  <SelectItem value="KG">KG</SelectItem>
+                                  <SelectItem value="LITRE">LITRE</SelectItem>
+                                  <SelectItem value="GRAM">GRAM</SelectItem>
+                                  <SelectItem value="ML">ML</SelectItem>
+                                  <SelectItem value="DOZEN">DOZEN</SelectItem>
+                                  <SelectItem value="PACKET">PACKET</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <div className="space-y-4">
+                        <FormField
+                          control={form.control}
+                          name="configItemWithCommodity"
+                          render={({ field }) => (
+                            <FormItem className="flex items-center justify-between p-3 border rounded-lg">
+                              <div>
+                                <FormLabel className="text-sm font-medium">Config Item With Commodity</FormLabel>
+                                <p className="text-xs text-gray-500">Link this item with commodity exchange rates</p>
+                              </div>
+                              <FormControl>
+                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="seniorExemptApplicable"
+                          render={({ field }) => (
+                            <FormItem className="flex items-center justify-between p-3 border rounded-lg">
+                              <div>
+                                <FormLabel className="text-sm font-medium">Senior Citizen Tax Exemption</FormLabel>
+                                <p className="text-xs text-gray-500">Apply tax exemptions for senior citizens</p>
+                              </div>
+                              <FormControl>
+                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Pricing Section */}
+                {currentSection === "pricing" && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <DollarSignIcon className="w-5 h-5" />
+                        Pricing
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="grid grid-cols-2 gap-6">
+                        <FormField
+                          control={form.control}
+                          name="sellBy"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Sell By</FormLabel>
+                              <FormControl>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="None">None</SelectItem>
+                                    <SelectItem value="Weight">Weight</SelectItem>
+                                    <SelectItem value="Unit">Unit</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="itemPerUnit"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Item Per Unit *</FormLabel>
+                              <FormControl>
+                                <Input {...field} placeholder="1" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      {/* Live Pricing Calculations Display */}
+                      <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg border border-green-200 mt-4">
+                        <h4 className="font-semibold text-green-800 mb-3 flex items-center gap-2">
+                          <span className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
+                          Live Pricing Calculations
+                        </h4>
+                        <div className="grid grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <div className="text-green-700 font-medium">Selling Price</div>
+                            <div className="text-lg font-bold text-green-900">
+                              ₹{parseFloat(watchedValues.price || "0").toFixed(2)}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-green-700 font-medium">MRP</div>
+                            <div className="text-lg font-bold text-green-900">
+                              ₹{parseFloat(watchedValues.mrp || "0").toFixed(2)}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-green-700 font-medium">Profit Margin</div>
+                            <div className="text-lg font-bold text-blue-600">
+                              {(() => {
+                                const cost = parseFloat(watchedValues.cost || "0");
+                                const price = parseFloat(watchedValues.price || "0");
+                                if (cost > 0 && price > 0) {
+                                  const margin = ((price - cost) / cost * 100);
+                                  return `${margin.toFixed(1)}%`;
+                                }
+                                return "0%";
+                              })()}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Tax inclusive price calculation */}
+                        <div className="mt-3 pt-3 border-t border-green-200">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-green-600">Tax Inclusive Price:</span>
+                            <span className="font-bold text-green-800">
+                              ₹{(() => {
+                                const price = parseFloat(watchedValues.price || "0");
+                                const totalGst = calculateTotalGST();
+                                const taxInclusivePrice = price + (price * totalGst / 100);
+                                return taxInclusivePrice.toFixed(2);
+                              })()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <FormField
+                        control={form.control}
+                        name="maintainSellingMrpBy"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Maintain Selling & M.R.P By *</FormLabel>
+                            <FormControl>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Multiple Selling Price & Multiple MRP">Multiple Selling Price & Multiple MRP</SelectItem>
+                                  <SelectItem value="Single Selling Price & Single MRP">Single Selling Price & Single MRP</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <div className="grid grid-cols-2 gap-6">
+                        <FormField
+                          control={form.control}
+                          name="batchSelection"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Batch Selection</FormLabel>
+                              <FormControl>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="Not Applicable">Not Applicable</SelectItem>
+                                    <SelectItem value="FIFO">FIFO</SelectItem>
+                                    <SelectItem value="LIFO">LIFO</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <div className="flex items-center space-x-3">
+                          <FormField
+                            control={form.control}
+                            name="isWeighable"
+                            render={({ field }) => (
+                              <FormItem className="flex items-center space-x-3">
+                                <FormControl>
+                                  <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                </FormControl>
+                                <FormLabel>Is Weighable</FormLabel>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* EAN Code/Barcode Section */}
+                {currentSection === "ean-code-barcode" && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <BarChart3Icon className="w-5 h-5" />
+                        EAN Code/Barcode Configuration
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="flex items-center space-x-3">
+                        <FormField
+                          control={form.control}
+                          name="eanCodeRequired"
+                          render={({ field }) => (
+                            <FormItem className="flex items-center space-x-3">
+                              <FormControl>
+                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                              </FormControl>
+                              <FormLabel>EAN Code Required</FormLabel>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      {/* Manual Barcode Entry */}
+                      <FormField
+                        control={form.control}
+                        name="barcode"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Manual Barcode Entry</FormLabel>
+                            <FormControl>
+                              <div className="space-y-2">
+                                <Input
+                                  {...field}
+                                  placeholder="Enter barcode manually (e.g., 1234567890123)"
+                                  className="font-mono"
+                                />
+                                <div className="flex gap-2">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      const randomEAN = '2' + Math.random().toString().slice(2, 14);
+                                      field.onChange(randomEAN);
+                                    }}
+                                  >
+                                    Generate EAN-13
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      const randomUPC = Math.random().toString().slice(2, 14);
+                                      field.onChange(randomUPC);
+                                    }}
+                                  >
+                                    Generate UPC
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => field.onChange("")}
+                                  >
+                                    Clear
+                                  </Button>
+                                </div>
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <div className="bg-blue-50 p-4 rounded-lg">
+                        <h3 className="font-medium mb-3">Barcode Configuration</h3>
+                        <p className="text-sm text-gray-600 mb-4">
+                          Configure barcode settings for this product. This will help in quick scanning and inventory management.
+                        </p>
+                        <div className="grid grid-cols-2 gap-4">
+                          <FormField
+                            control={form.control}
+                            name="barcodeType"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-sm font-medium">Barcode Type</FormLabel>
+                                <FormControl>
+                                  <Select
+                                    value={field.value || ""}
+                                    onValueChange={field.onChange}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select barcode type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="ean13">EAN-13 (European)</SelectItem>
+                                      <SelectItem value="ean8">EAN-8 (Short)</SelectItem>
+                                      <SelectItem value="upc">UPC (Universal)</SelectItem>
+                                      <SelectItem value="code128">Code 128</SelectItem>
+                                      <SelectItem value="code39">Code 39</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Barcode Preview</label>
+                            <div className="border border-gray-300 rounded-md p-3 bg-white min-h-[40px] flex items-center">
+                              {form.watch("barcode") ? (
+                                <div className="font-mono text-sm">
+                                  {form.watch("barcode")}
+                                </div>
+                              ) : (
+                                <span className="text-gray-400 text-sm">No barcode entered</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Packing Section */}
+                {currentSection === "packing" && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <BoxIcon className="w-5 h-5" />
+                        Weight & Packing Configuration
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="grid grid-cols-2 gap-6">
+                        <FormField
+                          control={form.control}
+                          name="weightsPerUnit"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Weight Per Unit</FormLabel>
+                              <FormControl>
+                                <Input {...field} placeholder="1" type="number" step="0.001" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="batchExpiryDetails"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Batch/Expiry Date Details</FormLabel>
+                              <FormControl>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Not Required" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="Not Required">Not Required</SelectItem>
+                                    <SelectItem value="Batch Only">Batch Only</SelectItem>
+                                    <SelectItem value="Expiry Only">Expiry Only</SelectItem>
+                                    <SelectItem value="Both Required">Both Required</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      <div className="space-y-6">
+                        <FormField
+                          control={form.control}
+                          name="itemPreparationsStatus"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Item Preparations Status</FormLabel>
+                              <FormControl>
+                                <Select
+                                  onValueChange={(value) => {
+                                    field.onChange(value);
+
+                                    // Clear conditional fields when status changes
+                                    if (value !== "Bulk" && value !== "Repackage" && value !== "Open Item" && value !== "Weight to Piece") {
+                                      form.setValue("grindingCharge", "");
+                                    }
+                                    if (value !== "Repackage" && value !== "Assembly" && value !== "Kit" && value !== "Combo Pack") {
+                                      form.setValue("bulkItemName", "");
+                                    }
+                                    if (value !== "Open Item" && value !== "Weight to Piece" && value !== "Bulk") {
+                                      form.setValue("weightInGms", "");
+                                    }
+                                  }}
+                                  value={field.value || "Trade As Is"}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select preparation status" />
+                                  </SelectTrigger>
+                                  <SelectContent className="max-h-80 overflow-y-auto">
+                                    <SelectItem value="Trade As Is">Trade As Is - Sold exactly as received</SelectItem>
+                                    <SelectItem value="Create">Create</SelectItem>
+                                    <SelectItem value="Bulk">Bulk - Stored and sold in bulk quantities</SelectItem>
+                                    <SelectItem value="Repackage">Repackage - Bought in bulk, repackaged into smaller units</SelectItem>
+                                    <SelectItem value="Standard Preparation">Standard Preparation</SelectItem>
+                                    <SelectItem value="Customer Prepared">Customer Prepared</SelectItem>
+                                    <SelectItem value="Parent">Parent</SelectItem>
+                                    <SelectItem value="Child">Child</SelectItem>
+                                    <SelectItem value="Assembly">Assembly</SelectItem>
+                                    <SelectItem value="Kit">Kit</SelectItem>
+                                    <SelectItem value="Ingredients">Ingredients</SelectItem>
+                                    <SelectItem value="Packing Material">Packing Material</SelectItem>
+                                    <SelectItem value="Combo Pack">Combo Pack</SelectItem>
+                                    <SelectItem value="Open Item">Open Item</SelectItem>
+                                    <SelectItem value="Weight to Piece">Weight to Piece</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        {/* Enhanced Bulk Item Selection with Details - Only for Repackage */}
+                        {form.watch("itemPreparationsStatus") === "Repackage" && (
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            {/* Left Side - Bulk Item Selection */}
+                            <div>
+                              <FormField
+                                control={form.control}
+                                name="bulkItemName"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Select Bulk Item to Repackage</FormLabel>
+                                    <FormControl>
+                                      <Select
+                                        onValueChange={(value) => {
+                                          if (value === "create-new") {
+                                            // Don't change field value, let user type custom name
+                                            return;
+                                          }
+                                          field.onChange(value);
+                                          // Auto-populate bulk item details when selected
+                                          const selectedProduct = bulkItems?.find((p: any) => p.name === value) || allProducts?.find((p: any) => p.name === value);
+                                          if (selectedProduct) {
+                                            form.setValue("cost", selectedProduct.price?.toString() || "0");
+                                            form.setValue("mrp", selectedProduct.mrp?.toString() || "0");
+                                          }
+                                        }}
+                                        value={field.value || ""}
+                                      >
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Select or type bulk item name" />
+                                        </SelectTrigger>
+                                        <SelectContent className="max-h-80 overflow-y-auto">
+                                          {/* Option to create new bulk item */}
+                                          <SelectItem value="create-new" className="bg-blue-50 font-medium">
+                                            ➕ Create New Bulk Item
+                                          </SelectItem>
+
+                                          {/* Existing bulk items */}
+                                          {bulkItems && bulkItems.length > 0 ? (
+                                            bulkItems.map((product: any) => (
+                                              <SelectItem key={`bulk-${product.id}`} value={product.name}>
+                                                <div className="flex flex-col">
+                                                  <div className="font-medium">
+                                                    {product.name}
+                                                  </div>
+                                                  <div className="text-xs text-gray-500">
+                                                    SKU: {product.sku} • Stock: {product.stockQuantity} •
+                                                    Weight: {product.weight || 1}{product.weightUnit || 'kg'} •
+                                                    Price: ₹{product.price}
+                                                  </div>
+                                                </div>
+                                              </SelectItem>
+                                            ))
+                                          ) : null}
+
+                                          {/* All products as fallback */}
+                                          {allProducts && allProducts.length > 0 ? (
+                                            allProducts.filter((product: any) => !bulkItems?.find((b: any) => b.id === product.id)).map((product: any) => (
+                                              <SelectItem key={`product-${product.id}`} value={product.name}>
+                                                <div className="flex flex-col">
+                                                  <div className="font-medium">
+                                                    {product.name}
+                                                  </div>
+                                                  <div className="text-xs text-gray-500">
+                                                    SKU: {product.sku} • Stock: {product.stockQuantity} •
+                                                    Weight: {product.weight || 1}{product.weightUnit || 'kg'} •
+                                                    Price: ₹{product.price}
+                                                  </div>
+                                                </div>
+                                              </SelectItem>
+                                            ))
+                                          ) : null}
+                                        </SelectContent>
+                                      </Select>
+                                    </FormControl>
+
+                                    {/* Custom input field for manual entry */}
+                                    <div className="mt-2">
+                                      <Input
+                                        placeholder="Or type custom bulk item name (e.g., VELLAM BULK)"
+                                        value={field.value || ""}
+                                        onChange={(e) => {
+                                          field.onChange(e.target.value);
+                                        }}
+                                        className="border-gray-200 focus:border-blue-500"
+                                      />
+                                    </div>
+
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+
+                            {/* Right Side - Bulk Item Details */}
+                            <div>
+                              {form.watch("bulkItemName") && (
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg overflow-hidden">
+                                  <div className="bg-blue-500 text-white text-center py-2 font-semibold text-sm">
+                                    Bulk Item Details
+                                  </div>
+
+                                  <div className="p-4 space-y-3 text-sm">
+                                    {(() => {
+                                      const selectedBulkItem = bulkItems?.find((p: any) => p.name === form.watch("bulkItemName")) ||
+                                        allProducts?.find((p: any) => p.name === form.watch("bulkItemName"));
+
+                                      if (!selectedBulkItem && form.watch("bulkItemName")) {
+                                        return (
+                                          <div className="text-center text-gray-500 py-4">
+                                            <p className="text-sm mb-3">"{form.watch("bulkItemName")}" not found in inventory</p>
+                                            <Button
+                                              type="button"
+                                              size="sm"
+                                              onClick={() => {
+                                                // Create bulk item with the selected name
+                                                const bulkItemName = form.watch("bulkItemName");
+                                                if (bulkItemName) {
+                                                  createBulkItem(bulkItemName);
+                                                }
+                                              }}
+                                              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 font-medium"
+                                            >
+                                              ➕ Create "{form.watch("bulkItemName")}" as Bulk Item
+                                            </Button>
+                                            <p className="text-xs mt-2 text-gray-400">
+                                              This will create a new bulk product that you can use for repackaging
+                                            </p>
+                                          </div>
+                                        );
+                                      }
+
+                                      if (!selectedBulkItem) {
+                                        return (
+                                          <div className="text-center text-gray-500 py-4">
+                                            <p className="text-sm">Type a bulk item name above to get started</p>
+                                            <p className="text-xs mt-1">You can select existing items or create new ones</p>
+                                          </div>
+                                        );
+                                      }
+
+                                      return (
+                                        <>
+                                          <div className="grid grid-cols-2 gap-2">
+                                            <span className="font-medium text-gray-700">Bulk Code:</span>
+                                            <span className="bg-gray-100 px-2 py-1 rounded text-center font-mono text-xs">
+                                              {selectedBulkItem.sku || 'N/A'}
+                                            </span>
+                                          </div>
+
+                                          <div className="grid grid-cols-2 gap-2">
+                                            <span className="font-medium text-gray-700">Bulk Item:</span>
+                                            <span className="bg-gray-100 px-2 py-1 rounded text-center text-xs">
+                                              {selectedBulkItem.name?.toUpperCase()}
+                                            </span>
+                                          </div>
+
+                                          <div className="grid grid-cols-2 gap-2">
+                                            <span className="font-medium text-gray-700">Available Stock:</span>
+                                            <span className={`px-2 py-1 rounded text-center text-xs font-semibold ${selectedBulkItem.stockQuantity > 10 ? 'bg-green-100 text-green-800' :
+                                              selectedBulkItem.stockQuantity > 0 ? 'bg-yellow-100 text-yellow-800' :
+                                                'bg-red-100 text-red-800'
+                                              }`}>
+                                              {selectedBulkItem.stockQuantity || 0} units
+                                            </span>
+                                          </div>
+
+                                          <div className="grid grid-cols-2 gap-2">
+                                            <span className="font-medium text-gray-700">Unit Cost:</span>
+                                            <span className="bg-yellow-100 px-2 py-1 rounded text-center text-xs font-semibold">
+                                              ₹{parseFloat(selectedBulkItem.price || 0).toFixed(2)}
+                                            </span>
+                                          </div>
+
+                                          <div className="grid grid-cols-2 gap-2">
+                                            <span className="font-medium text-gray-700">Bulk MRP:</span>
+                                            <span className="bg-yellow-100 px-2 py-1 rounded text-center text-xs font-semibold">
+                                              ₹{parseFloat(selectedBulkItem.mrp || 0).toFixed(2)}
+                                            </span>
+                                          </div>
+
+                                          <div className="grid grid-cols-2 gap-2">
+                                            <span className="font-medium text-gray-700">Unit Weight:</span>
+                                            <span className="bg-gray-100 px-2 py-1 rounded text-center text-xs">
+                                              {selectedBulkItem.weight || 1}{selectedBulkItem.weightUnit || 'kg'}
+                                            </span>
+                                          </div>
+
+                                          <div className="border-t pt-3 mt-3">
+                                            <Button
+                                              type="button"
+                                              onClick={() => {
+                                                // Debug: Check selectedBulkItem data
+                                                console.log('🔍 selectedBulkItem data:', selectedBulkItem);
+                                                console.log('💰 Pricing debug:', {
+                                                  cost: selectedBulkItem.cost,
+                                                  price: selectedBulkItem.price,
+                                                  mrp: selectedBulkItem.mrp
+                                                });
+
+                                                // Navigate to repacking-professional with pre-filled data
+                                                const repackingData = {
+                                                  bulkProduct: {
+                                                    id: selectedBulkItem.id,
+                                                    name: selectedBulkItem.name,
+                                                    sku: selectedBulkItem.sku,
+                                                    // Fixed field mapping to match actual database fields
+                                                    costPrice: parseFloat(selectedBulkItem.cost || "0"), // Cost field = Cost Price ₹40
+                                                    sellingPrice: parseFloat(selectedBulkItem.price || "0"), // Price field = Selling Price ₹50  
+                                                    mrp: parseFloat(selectedBulkItem.mrp || "0"), // MRP field = MRP ₹100
+                                                    weight: selectedBulkItem.weight,
+                                                    weightUnit: selectedBulkItem.weightUnit,
+                                                    stockQuantity: selectedBulkItem.stockQuantity,
+                                                    category: selectedBulkItem.category,
+                                                    supplier: selectedBulkItem.supplier
+                                                  },
+                                                  newProduct: {
+                                                    itemCode: form.getValues("itemCode"),
+                                                    itemName: form.getValues("itemName"),
+                                                    manufacturerName: form.getValues("manufacturerName"),
+                                                    alias: form.getValues("alias")
+                                                  }
+                                                };
+
+                                                console.log('💾 Storing repackingData:', repackingData);
+
+                                                // Store data in localStorage for repacking-professional
+                                                localStorage.setItem('repackingIntegrationData', JSON.stringify(repackingData));
+
+                                                // Verify data was stored
+                                                const stored = localStorage.getItem('repackingIntegrationData');
+                                                console.log('✅ Data stored successfully:', stored);
+
+                                                // Navigate to repacking-professional
+                                                setLocation('/repacking-professional');
+                                              }}
+                                              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 transform hover:scale-105 flex items-center justify-center gap-2"
+                                            >
+                                              <PackageIcon className="w-4 h-4" />
+                                              Start Professional Repackaging
+                                            </Button>
+
+                                            <div className="text-xs text-gray-600 text-center mt-2">
+                                              Last Updated: {new Date().toLocaleDateString()}
+                                            </div>
+                                          </div>
+                                        </>
+                                      );
+                                    })()}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Enhanced Repackaging Configuration */}
+                      {form.watch("itemPreparationsStatus") === "Repackage" && (
+                        <div className="space-y-6">
+                          <Separator />
+                          <div className="bg-blue-50 p-4 rounded-lg">
+                            <h4 className="font-semibold mb-4 text-blue-800 flex items-center gap-2">
+                              <PackageIcon className="w-5 h-5" />
+                              Repackaging Configuration
+                            </h4>
+
+                            <div className="grid grid-cols-2 gap-6">
+                              <FormField
+                                control={form.control}
+                                name="weightInGms"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Target Package Weight (grams)</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        {...field}
+                                        placeholder="e.g., 500 (for 500g packages)"
+                                        type="number"
+                                        step="0.001"
+                                        className="border-gray-200 focus:border-blue-500"
+                                      />
+                                    </FormControl>
+                                    <div className="text-xs text-gray-500 mt-1">Weight for each repackaged unit</div>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+
+                              <FormField
+                                control={form.control}
+                                name="repackageUnits"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Number of Units to Create</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        {...field}
+                                        placeholder="e.g., 20 (create 20 units)"
+                                        type="number"
+                                        min="1"
+                                        className="border-blue-300 focus:border-blue-500"
+                                      />
+                                    </FormControl>
+                                    <div className="text-xs text-gray-500 mt-1">How many repackaged units to create</div>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-6 mt-4">
+                              <FormField
+                                control={form.control}
+                                name="repackageType"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Repackaging Type</FormLabel>
+                                    <FormControl>
+                                      <Select onValueChange={field.onChange} value={field.value}>
+                                        <SelectTrigger>
+                                          <SelectValue>
+                                            {field.value || "Select repackaging type"}
+                                          </SelectValue>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="weight-division">Weight Division (1kg → 500g packs)</SelectItem>
+                                          <SelectItem value="portion-control">Portion Control</SelectItem>
+                                          <SelectItem value="consumer-size">Consumer Size Packaging</SelectItem>
+                                          <SelectItem value="sample-size">Sample/Trial Size</SelectItem>
+                                          <SelectItem value="bulk-to-retail">Bulk to Retail</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+
+                              <FormField
+                                control={form.control}
+                                name="packagingMaterial"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Packaging Material</FormLabel>
+                                    <FormControl>
+                                      <Select onValueChange={field.onChange} value={field.value}>
+                                        <SelectTrigger>
+                                          <SelectValue>
+                                            {field.value || "Select packaging material"}
+                                          </SelectValue>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="plastic-pouch">Plastic Pouch</SelectItem>
+                                          <SelectItem value="paper-bag">Paper Bag</SelectItem>
+                                          <SelectItem value="glass-jar">Glass Jar</SelectItem>
+                                          <SelectItem value="tin-container">Tin Container</SelectItem>
+                                          <SelectItem value="cardboard-box">Cardboard Box</SelectItem>
+                                          <SelectItem value="vacuum-sealed">Vacuum Sealed</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+
+                            {/* Repackaging Preview */}
+                            {form.watch("weightInGms") && form.watch("repackageUnits") && (
+                              <div className="mt-4 p-3 bg-green-50 rounded border border-green-200">
+                                <h5 className="font-medium text-green-800 mb-2">Repackaging Preview</h5>
+                                <div className="text-sm text-green-700">
+                                  <p>• Each unit: {form.watch("weightInGms")}g</p>
+                                  <p>• Total units: {form.watch("repackageUnits") || 0}</p>
+                                  <p>• Total weight needed: {(parseFloat(form.watch("weightInGms") || "0") * parseInt(form.watch("repackageUnits") || "0")) / 1000}kg</p>
+                                  <p>• Bulk item: {form.watch("bulkItemName") || "Not selected"}</p>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Quick Unit Conversion Buttons */}
+                            <div className="mt-4">
+                              <label className="text-sm font-medium text-gray-700 mb-2 block">Quick Unit Templates:</label>
+                              <div className="flex flex-wrap gap-2">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    form.setValue("weightInGms", "250");
+                                    form.setValue("repackageUnits", "4");
+                                  }}
+                                  className="text-xs"
+                                >
+                                  1kg → 4×250g
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    form.setValue("weightInGms", "500");
+                                    form.setValue("repackageUnits", "2");
+                                  }}
+                                  className="text-xs"
+                                >
+                                  1kg → 2×500g
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    form.setValue("weightInGms", "100");
+                                    form.setValue("repackageUnits", "10");
+                                  }}
+                                  className="text-xs"
+                                >
+                                  1kg → 10×100g
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    form.setValue("weightInGms", "50");
+                                    form.setValue("repackageUnits", "20");
+                                  }}
+                                  className="text-xs"
+                                >
+                                  1kg → 20×50g
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Conditional Weight in Gms Field for other statuses */}
+                      {(form.watch("itemPreparationsStatus") === "Open Item" ||
+                        form.watch("itemPreparationsStatus") === "Weight to Piece" ||
+                        form.watch("itemPreparationsStatus") === "Bulk") &&
+                        form.watch("itemPreparationsStatus") !== "Repackage" && (
+                          <div>
+                            <div className="grid grid-cols-2 gap-6">
+                              <FormField
+                                control={form.control}
+                                name="weightInGms"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Weight in (Gms)</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        {...field}
+                                        placeholder="Weight(gms) is required"
+                                        type="number"
+                                        step="0.001"
+                                        className="border-gray-200 focus:border-blue-500"
+                                      />
+                                    </FormControl>
+
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <div />
+                            </div>
+                          </div>
+                        )}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Item Properties Section */}
+                {currentSection === "item-properties" && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <SettingsIcon className="w-5 h-5" />
+                        Item Properties
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="grid grid-cols-2 gap-6">
+                        <FormField
+                          control={form.control}
+                          name="decimalPoint"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Decimal Point</FormLabel>
+                              <FormControl>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="0">0 (No decimals)</SelectItem>
+                                    <SelectItem value="1">1 decimal place</SelectItem>
+                                    <SelectItem value="2">2 decimal places</SelectItem>
+                                    <SelectItem value="3">3 decimal places</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <div />
+                      </div>
+
+                      <FormField
+                        control={form.control}
+                        name="productType"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Product Type *</FormLabel>
+                            <FormControl>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="NA">N/A</SelectItem>
+                                  <SelectItem value="FMCG">FMCG</SelectItem>
+                                  <SelectItem value="Electronics">Electronics</SelectItem>
+                                  <SelectItem value="Clothing">Clothing</SelectItem>
+                                  <SelectItem value="Food">Food & Beverages</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <div className="grid grid-cols-2 gap-6">
+                        <FormField
+                          control={form.control}
+                          name="weight"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Weight</FormLabel>
+                              <FormControl>
+                                <Input {...field} placeholder="Weight of item" type="number" step="any" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="weightUnit"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Weight Unit</FormLabel>
+                              <FormControl>
+                                <Select
+                                  value={field.value}
+                                  onValueChange={field.onChange}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select unit" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="kg">kg</SelectItem>
+                                    <SelectItem value="g">g</SelectItem>
+                                    <SelectItem value="lb">lb</SelectItem>
+                                    <SelectItem value="oz">oz</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      <div className="bg-purple-50 p-4 rounded-lg">
+                        <h3 className="font-medium mb-3">Additional Properties</h3>
+                        <div className="space-y-3">
+                          <FormField
+                            control={form.control}
+                            name="perishableItem"
+                            render={({ field }) => (
+                              <FormItem className="flex items-center justify-between">
+                                <FormLabel className="text-sm">Perishable Item</FormLabel>
+                                <FormControl>
+                                  <Switch
+                                    checked={field.value || false}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="temperatureControlled"
+                            render={({ field }) => (
+                              <FormItem className="flex items-center justify-between">
+                                <FormLabel className="text-sm">Temperature Controlled</FormLabel>
+                                <FormControl>
+                                  <Switch
+                                    checked={field.value || false}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="fragileItem"
+                            render={({ field }) => (
+                              <FormItem className="flex items-center justify-between">
+                                <FormLabel className="text-sm">Fragile Item</FormLabel>
+                                <FormControl>
+                                  <Switch
+                                    checked={field.value || false}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="trackSerialNumbers"
+                            render={({ field }) => (
+                              <FormItem className="flex items-center justify-between">
+                                <FormLabel className="text-sm">Track Serial Numbers</FormLabel>
+                                <FormControl>
+                                  <Switch
+                                    checked={field.value || false}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+                {/* Pricing Section */}
+                {currentSection === "pricing" && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <DollarSignIcon className="w-5 h-5" />
+                        Pricing
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="bg-blue-50 p-4 rounded-lg">
+                        <h3 className="font-medium mb-3 flex items-center gap-2">
+                          <DollarSignIcon className="w-4 h-4 text-blue-600" />
+                          Pricing Information
+                          {enabledModules['/wholesale-pricing'] !== false && (
+                            <Badge variant="secondary" className="text-xs">
+                              With Wholesale Support
+                            </Badge>
+                          )}
+                        </h3>
+                        <div className="grid grid-cols-2 gap-4">
+                          <FormField
+                            control={form.control}
+                            name="price"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Selling Price *</FormLabel>
+                                <FormControl>
+                                  <Input {...field} placeholder="0.00" type="number" step="0.01" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="mrp"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>MRP *</FormLabel>
+                                <FormControl>
+                                  <Input {...field} placeholder="0.00" type="number" step="0.01" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        {enabledModules['/wholesale-pricing'] !== false && (
+                          <div className="grid grid-cols-2 gap-4 mt-4">
+                            <FormField
+                              control={form.control}
+                              name="wholesalePrice"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="flex items-center gap-2">
+                                    <span>Wholesale Price</span>
+                                    <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-300">
+                                      Bulk Pricing
+                                    </Badge>
+                                  </FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      {...field}
+                                      placeholder="0.00"
+                                      type="number"
+                                      step="0.01"
+                                      className="border-green-200 focus:border-green-400"
+                                      onChange={(e) => {
+                                        const value = e.target.value;
+                                        field.onChange(value);
+                                        // Auto-calculate suggested retail price if not set
+                                        if (!isEditMode && value) {
+                                          const currentRetailPrice = form.getValues("price");
+                                          if (!currentRetailPrice || currentRetailPrice === "0" || currentRetailPrice === "") {
+                                            const wholesaleValue = parseFloat(value) || 0;
+                                            const suggestedRetailPrice = wholesaleValue * 1.25; // 25% markup from wholesale
+                                            form.setValue("price", suggestedRetailPrice.toFixed(2));
+                                          }
+                                        }
+                                      }}
+                                    />
+                                  </FormControl>
+                                  <p className="text-xs text-green-600 mt-1">
+                                    For bulk orders & B2B customers
+                                  </p>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                              <h4 className="text-sm font-medium text-green-800 mb-2">Pricing Guide</h4>
+                              <div className="space-y-1 text-xs text-green-700">
+                                <div className="flex justify-between">
+                                  <span>Cost Price:</span>
+                                  <span>₹{form.watch("cost") || "0"}</span>
+                                </div>
+                                <div className="flex justify-between font-medium">
+                                  <span>Wholesale Price:</span>
+                                  <span>₹{form.watch("wholesalePrice") || "0"}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Retail Price:</span>
+                                  <span>₹{form.watch("price") || "0"}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>MRP:</span>
+                                  <span>₹{form.watch("mrp") || "0"}</span>
+                                </div>
+                                {form.watch("wholesalePrice") && form.watch("cost") && (
+                                  <div className="border-t border-green-300 pt-1 mt-2">
+                                    <div className="flex justify-between text-xs">
+                                      <span>Wholesale Margin:</span>
+                                      <span>
+                                        {(((parseFloat(form.watch("wholesalePrice") || "0") - parseFloat(form.watch("cost") || "0")) / parseFloat(form.watch("cost") || "0")) * 100).toFixed(1)}%
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-4 mt-4">
+                          <FormField
+                            control={form.control}
+                            name="cost"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Cost Price *</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    placeholder="0.00"
+                                    type="number"
+                                    step="0.01"
+                                    onChange={(e) => {
+                                      const value = e.target.value;
+                                      field.onChange(value);
+                                      // Auto-update selling price if not set and not in edit mode
+                                      if (!isEditMode) {
+                                        const currentSellingPrice = form.getValues("price");
+                                        if (!currentSellingPrice || currentSellingPrice === "0" || currentSellingPrice === "") {
+                                          const costValue = parseFloat(value) || 0;
+                                          const suggestedPrice = costValue * 1.2; // 20% markup
+                                          form.setValue("price", suggestedPrice.toString());
+                                        }
+                                      }
+                                    }}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="stockQuantity"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Stock Quantity *</FormLabel>
+                                <FormControl>
+                                  <Input {...field} placeholder="0" type="number" step="any" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+
+                    </CardContent>
+                  </Card>
+                )}
+
+
+                {/* Reorder Configurations Section */}
+                {currentSection === "reorder-configurations" && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <PackageIcon className="w-5 h-5" />
+                        Reorder Configurations
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="grid grid-cols-2 gap-6">
+                        <FormField
+                          control={form.control}
+                          name="skuType"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>SKU Type</FormLabel>
+                              <FormControl>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="Put Away">Put Away</SelectItem>
+                                    <SelectItem value="Fast Moving">Fast Moving</SelectItem>
+                                    <SelectItem value="Slow Moving">Slow Moving</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="indentType"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Indent Type</FormLabel>
+                              <FormControl>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="Manual">Manual</SelectItem>
+                                    <SelectItem value="Automatic">Automatic</SelectItem>
+                                    <SelectItem value="Semi-Automatic">Semi-Automatic</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      <div className="bg-green-50 p-4 rounded-lg">
+                        <h3 className="font-medium mb-3">Reorder Parameters</h3>
+                        <div className="grid grid-cols-3 gap-4">
+                          <div>
+                            <label className="text-sm font-medium">Minimum Stock Level</label>
+                            <Input placeholder="10" type="number" />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">Reorder Point</label>
+                            <Input placeholder="20" type="number" />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">Economic Order Quantity</label>
+                            <Input placeholder="100" type="number" />
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Section Navigation */}
+                <div className="flex justify-between items-center pt-6 border-t">
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const sections = sidebarSections.map(s => s.id);
+                        const currentIndex = sections.indexOf(currentSection);
+                        if (currentIndex > 0) {
+                          setCurrentSection(sections[currentIndex - 1]);
+                        }
+                      }}
+                      disabled={sidebarSections.findIndex(s => s.id === currentSection) === 0}
+                    >
+                      ← Previous
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const sections = sidebarSections.map(s => s.id);
+                        const currentIndex = sections.indexOf(currentSection);
+                        if (currentIndex < sections.length - 1) {
+                          setCurrentSection(sections[currentIndex + 1]);
+                        }
+                      }}
+                      disabled={sidebarSections.findIndex(s => s.id === currentSection) === sidebarSections.length - 1}
+                    >
+                      Next →
+                    </Button>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        console.log('Cancel/Reset button clicked');
+                        if (isEditMode) {
+                          setLocation("/add-item-dashboard");
+                        } else {
+                          form.reset();
+                          // Generate new item code for next item
+                          if (allProducts && allProducts.length > 0) {
+                            form.setValue('itemCode', generateItemCode(), { shouldValidate: true });
+                          } else {
+                            fetchNextItemCode();
+                          }
+                        }
+                      }}
+                    >
+                      {isEditMode ? "Cancel Edit" : "Reset Form"}
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={createProductMutation.isPending}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      {createProductMutation.isPending ? (
+                        <>
+                          <Loader2Icon className="w-4 h-4 mr-2 animate-spin" />
+                          {isEditMode ? "Updating..." : "Adding..."}
+                        </>
+                      ) : (
+                        isEditMode ? "Update Product" : "Add Product"
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </form>
+            </Form>
+          </div>
+        </div>
+      </div>
+      <Dialog open={isAddTaxOpen} onOpenChange={setIsAddTaxOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Tax Category</DialogTitle>
+            <DialogDescription>
+              Create a new tax category to use for your products.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="tax-name">Category Name *</Label>
+              <Input
+                id="tax-name"
+                placeholder="e.g. GST 12%, Electronics"
+                value={newTaxName}
+                onChange={(e) => setNewTaxName(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="tax-rate">Rate (%) *</Label>
+              <Input
+                id="tax-rate"
+                type="number"
+                placeholder="18"
+                value={newTaxRate}
+                onChange={(e) => setNewTaxRate(Number(e.target.value))}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="tax-desc">Description</Label>
+              <Input
+                id="tax-desc"
+                placeholder="Short description"
+                value={newTaxDesc}
+                onChange={(e) => setNewTaxDesc(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="tax-hsn">HSN Code Range (Optional)</Label>
+              <Input
+                id="tax-hsn"
+                placeholder="e.g. 8500-8599"
+                value={newTaxHsn}
+                onChange={(e) => setNewTaxHsn(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddTaxOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                if (!newTaxName || newTaxRate < 0) {
+                  toast({
+                    title: "Validation Error",
+                    description: "Please enter a valid name and rate.",
+                    variant: "destructive"
+                  });
+                  return;
+                }
+                createCategoryMutation.mutate({
+                  name: newTaxName,
+                  rate: newTaxRate.toString(), // Ensure rate is sent as string
+                  description: newTaxDesc,
+                  hsnCodeRange: newTaxHsn,
+                  isActive: true
+                });
+              }}
+              disabled={createCategoryMutation.isPending}
+            >
+              {createCategoryMutation.isPending ? "Creating..." : "Create Category"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isAddSupplierOpen} onOpenChange={setIsAddSupplierOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New {addSupplierType === "manufacturer" ? "Manufacturer" : "Supplier"}</DialogTitle>
+            <DialogDescription>
+              Enter the name for the new {addSupplierType}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="supplier-name">Name *</Label>
+              <Input
+                id="supplier-name"
+                placeholder={`Name of the ${addSupplierType}`}
+                value={newSupplierName}
+                onChange={(e) => setNewSupplierName(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddSupplierOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                if (!newSupplierName.trim()) {
+                  toast({
+                    title: "Validation Error",
+                    description: "Please enter a valid name.",
+                    variant: "destructive"
+                  });
+                  return;
+                }
+                createSupplierMutation.mutate(newSupplierName);
+              }}
+              disabled={createSupplierMutation.isPending}
+            >
+              {createSupplierMutation.isPending ? "Creating..." : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isAddItemTypeOpen} onOpenChange={setIsAddItemTypeOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Item Product Type</DialogTitle>
+            <DialogDescription>Enter the name for the new Item Product Type.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+             <div className="grid gap-2">
+               <Label htmlFor="item-type-name">Name *</Label>
+               <Input
+                 id="item-type-name"
+                 placeholder="e.g. Bundle"
+                 value={newItemTypeName}
+                 onChange={(e) => setNewItemTypeName(e.target.value)}
+               />
+             </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddItemTypeOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                if (!newItemTypeName.trim()) {
+                  toast({ title: "Validation Error", description: "Please enter a valid name.", variant: "destructive" });
+                  return;
+                }
+                createItemTypeMutation.mutate(newItemTypeName);
+              }}
+              disabled={createItemTypeMutation.isPending}
+            >
+              {createItemTypeMutation.isPending ? "Creating..." : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isAddDeptOpen} onOpenChange={setIsAddDeptOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Department</DialogTitle>
+            <DialogDescription>Enter the name for the new Department.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+             <div className="grid gap-2">
+               <Label htmlFor="dept-name">Name *</Label>
+               <Input
+                 id="dept-name"
+                 placeholder="e.g. Health & Beauty"
+                 value={newDeptName}
+                 onChange={(e) => setNewDeptName(e.target.value)}
+               />
+             </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddDeptOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                if (!newDeptName.trim()) {
+                  toast({ title: "Validation Error", description: "Please enter a valid name.", variant: "destructive" });
+                  return;
+                }
+                createDeptMutation.mutate(newDeptName);
+              }}
+              disabled={createDeptMutation.isPending}
+            >
+              {createDeptMutation.isPending ? "Creating..." : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isAddMainCategoryOpen} onOpenChange={setIsAddMainCategoryOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Main Category</DialogTitle>
+            <DialogDescription>Enter the name for the new Main Category.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+             <div className="grid gap-2">
+               <Label htmlFor="main-category-name">Name *</Label>
+               <Input
+                 id="main-category-name"
+                 placeholder="e.g. Snacks"
+                 value={newMainCategoryName}
+                 onChange={(e) => setNewMainCategoryName(e.target.value)}
+               />
+               <p className="text-xs text-gray-500">Name must be at least 3 characters.</p>
+             </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddMainCategoryOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                if (newMainCategoryName.trim().length < 3) {
+                  toast({ title: "Validation Error", description: "Name must be at least 3 characters.", variant: "destructive" });
+                  return;
+                }
+                createMainCategoryMutation.mutate(newMainCategoryName);
+              }}
+              disabled={createMainCategoryMutation.isPending}
+            >
+              {createMainCategoryMutation.isPending ? "Creating..." : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </DashboardLayout >
+  );
+}
+
