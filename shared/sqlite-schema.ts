@@ -519,6 +519,7 @@ export const purchaseItemsRelations = relations(purchaseItems, ({ one }) => ({
 
 // Insert and select schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
+export const userInsertSchema = insertUserSchema; // Alias for compatibility
 export const selectUserSchema = createSelectSchema(users);
 export const insertProductSchema = createInsertSchema(products, {
   name: (schema) => schema.min(2, "Name must be at least 2 characters"),
@@ -544,8 +545,10 @@ export const insertCategorySchema = createInsertSchema(categories).omit({ id: tr
 export const categoryInsertSchema = insertCategorySchema; // Alias for compatibility
 export const selectCategorySchema = createSelectSchema(categories);
 export const insertItemProductTypeSchema = createInsertSchema(itemProductTypes).omit({ id: true, createdAt: true, updatedAt: true });
+export const itemProductTypeInsertSchema = insertItemProductTypeSchema; // Alias for compatibility
 export const selectItemProductTypeSchema = createSelectSchema(itemProductTypes);
 export const insertDepartmentSchema = createInsertSchema(departments).omit({ id: true, createdAt: true, updatedAt: true });
+export const departmentInsertSchema = insertDepartmentSchema; // Alias for compatibility
 export const selectDepartmentSchema = createSelectSchema(departments);
 export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true, createdAt: true });
 export const customerInsertSchema = insertCustomerSchema; // Alias for compatibility
