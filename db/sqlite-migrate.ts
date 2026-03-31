@@ -41,15 +41,18 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
 
   // HSN Codes table for GST compliance
   db.exec(`
-    CREATE TABLE IF NOT EXISTS hsn_codes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      hsn_code TEXT NOT NULL UNIQUE,
-      description TEXT NOT NULL,
-      tax_rate REAL NOT NULL,
-      category TEXT,
-      is_active INTEGER DEFAULT 1,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    CREATE TABLE IF NOT EXISTS "hsn_codes" (
+      "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+      "hsn_code" TEXT NOT NULL UNIQUE,
+      "description" TEXT NOT NULL,
+      "tax_category_id" INTEGER DEFAULT 1,
+      "cgst_rate" REAL DEFAULT 0,
+      "sgst_rate" REAL DEFAULT 0,
+      "igst_rate" REAL DEFAULT 0,
+      "cess_rate" REAL DEFAULT 0,
+      "is_active" INTEGER DEFAULT 1,
+      "created_at" TEXT DEFAULT CURRENT_TIMESTAMP,
+      "updated_at" TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
@@ -1118,6 +1121,17 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
         try {
           db.exec('ALTER TABLE hsn_codes RENAME COLUMN code TO hsn_code');
         } catch(e) { console.error('Error renaming hsn_codes column', e); }
+      }
+      if (!columns.includes('tax_category_id')) {
+        console.log('🔄 Adding tax_category_id to hsn_codes...');
+        db.exec('ALTER TABLE hsn_codes ADD COLUMN tax_category_id INTEGER DEFAULT 1');
+      }
+      if (!columns.includes('cgst_rate')) {
+        console.log('🔄 Adding tax rate columns to hsn_codes...');
+        db.exec('ALTER TABLE hsn_codes ADD COLUMN cgst_rate REAL DEFAULT 0');
+        db.exec('ALTER TABLE hsn_codes ADD COLUMN sgst_rate REAL DEFAULT 0');
+        db.exec('ALTER TABLE hsn_codes ADD COLUMN igst_rate REAL DEFAULT 0');
+        db.exec('ALTER TABLE hsn_codes ADD COLUMN cess_rate REAL DEFAULT 0');
       }
     }
   }
