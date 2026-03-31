@@ -1728,3 +1728,366 @@
 [2026-03-31T14:43:55.774Z] 3:43:55 PM [express] GET /api/customers 304 in 24ms :: [{"id":1,"name":"mushu","email":null,"phone":…
 [2026-03-31T14:43:55.779Z] 3:43:55 PM [express] GET /api/settings/receipt 304 in 30ms :: {"businessName":"M MART","businessAddr…
 [2026-03-31T14:43:55.782Z] 3:43:55 PM [express] GET /api/cash-register/active 304 in 33ms :: {"id":3,"registerId":"REG177480090…
+[2026-03-31T14:48:23.975Z] 🔍 Storage: getSetting(app_name) = FFS POS
+[2026-03-31T14:48:24.244Z] 🔍 Storage: getSetting(logo_icon) = Zap
+[2026-03-31T14:48:24.345Z] 🔍 Storage: getSetting(logo_color) = from-indigo-500 to-purple-600
+[2026-03-31T14:48:24.425Z] 🔍 Storage: getSetting(primary_color) = null
+[2026-03-31T14:48:24.710Z] 3:48:24 PM [express] GET /api/branding 200 in 1507ms :: {"appName":"FFS POS","logoIcon":"Zap","logoC…
+[2026-03-31T14:48:25.017Z] User session check
+[2026-03-31T14:48:25.043Z] User not authenticated
+[2026-03-31T14:48:25.210Z] 3:48:25 PM [express] GET /api/auth/user 401 in 329ms :: {"message":"Not authenticated"}
+[2026-03-31T14:50:41.082Z] Login request received:
+[2026-03-31T14:50:41.084Z] Login attempt with:
+[2026-03-31T14:50:41.087Z] User found:
+[2026-03-31T14:50:41.088Z] Attempting password verification
+[2026-03-31T14:50:41.306Z] Password validation result:
+[2026-03-31T14:50:41.307Z] Authentication successful, user logged in
+[2026-03-31T14:50:41.308Z] Authentication successful for user:
+[2026-03-31T14:50:41.311Z] Session created successfully
+[2026-03-31T14:50:41.317Z] 3:50:41 PM [express] POST /api/auth/login 200 in 234ms :: {"user":{"id":1,"username":"admin","name":…
+[2026-03-31T14:50:41.403Z] 3:50:41 PM [express] GET /api/dashboard/sales-chart 200 in 8ms :: [{"date":"2026-03-25","total":"0",…
+[2026-03-31T14:50:41.415Z] 3:50:41 PM [express] GET /api/settings/currency 200 in 25ms
+[2026-03-31T14:50:41.419Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T14:50:41.424Z] 🔍 Executing query:
+[2026-03-31T14:50:41.425Z] 📝 Query params:
+[2026-03-31T14:50:41.428Z] ✅ Direct query found 10 sales
+[2026-03-31T14:50:41.429Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T14:50:41.430Z] 🔎 First formatted sale with split payments:
+[2026-03-31T14:50:41.435Z] 3:50:41 PM [express] GET /api/sales 200 in 22ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custom…
+[2026-03-31T14:50:41.467Z] 3:50:41 PM [express] GET /api/products/low-stock 200 in 28ms :: [{"id":3,"name":"sigghg","descriptio…
+[2026-03-31T14:50:41.478Z] 📊 Fetching dashboard stats...
+[2026-03-31T14:50:41.481Z] 📊 Dashboard stats calculated:
+[2026-03-31T14:50:41.488Z] 3:50:41 PM [express] GET /api/dashboard/stats 200 in 19ms :: {"totalProducts":3,"todaysSales":0,"tod…
+[2026-03-31T14:50:41.495Z] 3:50:41 PM [express] GET /api/dashboard/top-products 200 in 73ms
+[2026-03-31T14:52:42.015Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T14:52:42.018Z] 🔍 Executing query:
+[2026-03-31T14:52:42.018Z] 📝 Query params:
+[2026-03-31T14:52:42.020Z] ✅ Direct query found 10 sales
+[2026-03-31T14:52:42.020Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T14:52:42.021Z] 🔎 First formatted sale with split payments:
+[2026-03-31T14:52:42.023Z] 3:52:42 PM [express] GET /api/sales 304 in 8ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custome…
+[2026-03-31T14:53:45.505Z] 📊 Fetching dashboard stats...
+[2026-03-31T14:53:45.506Z] 📊 Dashboard stats calculated:
+[2026-03-31T14:53:45.512Z] 3:53:45 PM [express] GET /api/dashboard/stats 304 in 8ms :: {"totalProducts":3,"todaysSales":0,"toda…
+[2026-03-31T14:53:48.162Z] 🔍 Storage: getSetting(app_name) = FFS POS
+[2026-03-31T14:53:48.164Z] 🔍 Storage: getSetting(logo_icon) = Zap
+[2026-03-31T14:53:48.165Z] 🔍 Storage: getSetting(logo_color) = from-indigo-500 to-purple-600
+[2026-03-31T14:53:48.167Z] 🔍 Storage: getSetting(primary_color) = null
+[2026-03-31T14:53:48.175Z] 3:53:48 PM [express] GET /api/branding 304 in 15ms :: {"appName":"FFS POS","logoIcon":"Zap","logoCol…
+[2026-03-31T14:53:48.178Z] User session check
+[2026-03-31T14:53:48.178Z] User authenticated:
+[2026-03-31T14:53:48.181Z] 3:53:48 PM [express] GET /api/auth/user 304 in 9ms :: {"user":{"id":1,"username":"admin","name":"Adm…
+[2026-03-31T14:53:48.593Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T14:53:48.599Z] 🔍 Executing query:
+[2026-03-31T14:53:48.600Z] 📝 Query params:
+[2026-03-31T14:53:48.603Z] ✅ Direct query found 10 sales
+[2026-03-31T14:53:48.606Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T14:53:48.607Z] 🔎 First formatted sale with split payments:
+[2026-03-31T14:53:48.620Z] 3:53:48 PM [express] GET /api/sales 304 in 31ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custom…
+[2026-03-31T14:53:48.624Z] 3:53:48 PM [express] GET /api/dashboard/sales-chart 304 in 36ms :: [{"date":"2026-03-25","total":"0"…
+[2026-03-31T14:53:48.629Z] 📊 Fetching dashboard stats...
+[2026-03-31T14:53:48.631Z] 📊 Dashboard stats calculated:
+[2026-03-31T14:53:48.634Z] 3:53:48 PM [express] GET /api/products/low-stock 304 in 35ms :: [{"id":3,"name":"sigghg","descriptio…
+[2026-03-31T14:53:48.636Z] 3:53:48 PM [express] GET /api/dashboard/stats 304 in 37ms :: {"totalProducts":3,"todaysSales":0,"tod…
+[2026-03-31T14:53:48.649Z] 3:53:48 PM [express] GET /api/settings/currency 200 in 65ms
+[2026-03-31T14:53:48.661Z] 3:53:48 PM [express] GET /api/dashboard/top-products 200 in 70ms
+[2026-03-31T14:54:42.352Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T14:54:42.354Z] 🔍 Executing query:
+[2026-03-31T14:54:42.355Z] 📝 Query params:
+[2026-03-31T14:54:42.357Z] ✅ Direct query found 10 sales
+[2026-03-31T14:54:42.357Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T14:54:42.358Z] 🔎 First formatted sale with split payments:
+[2026-03-31T14:54:42.360Z] 3:54:42 PM [express] GET /api/sales 304 in 8ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custome…
+[2026-03-31T14:55:28.099Z] 📊 Fetching dashboard stats...
+[2026-03-31T14:55:28.101Z] 📊 Dashboard stats calculated:
+[2026-03-31T14:55:28.103Z] 3:55:28 PM [express] GET /api/dashboard/stats 304 in 5ms :: {"totalProducts":3,"todaysSales":0,"toda…
+[2026-03-31T14:56:42.681Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T14:56:42.682Z] 🔍 Executing query:
+[2026-03-31T14:56:42.683Z] 📝 Query params:
+[2026-03-31T14:56:42.685Z] ✅ Direct query found 10 sales
+[2026-03-31T14:56:42.686Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T14:56:42.686Z] 🔎 First formatted sale with split payments:
+[2026-03-31T14:56:42.688Z] 3:56:42 PM [express] GET /api/sales 304 in 7ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custome…
+[2026-03-31T14:58:43.017Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T14:58:43.019Z] 🔍 Executing query:
+[2026-03-31T14:58:43.019Z] 📝 Query params:
+[2026-03-31T14:58:43.021Z] ✅ Direct query found 10 sales
+[2026-03-31T14:58:43.022Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T14:58:43.023Z] 🔎 First formatted sale with split payments:
+[2026-03-31T14:58:43.024Z] 3:58:43 PM [express] GET /api/sales 304 in 8ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custome…
+[2026-03-31T15:00:43.353Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T15:00:43.357Z] 🔍 Executing query:
+[2026-03-31T15:00:43.358Z] 📝 Query params:
+[2026-03-31T15:00:43.359Z] ✅ Direct query found 10 sales
+[2026-03-31T15:00:43.360Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T15:00:43.360Z] 🔎 First formatted sale with split payments:
+[2026-03-31T15:00:43.363Z] 4:00:43 PM [express] GET /api/sales 304 in 10ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custom…
+[2026-03-31T15:02:43.695Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T15:02:43.696Z] 🔍 Executing query:
+[2026-03-31T15:02:43.697Z] 📝 Query params:
+[2026-03-31T15:02:43.698Z] ✅ Direct query found 10 sales
+[2026-03-31T15:02:43.699Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T15:02:43.700Z] 🔎 First formatted sale with split payments:
+[2026-03-31T15:02:43.701Z] 4:02:43 PM [express] GET /api/sales 304 in 7ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custome…
+[2026-03-31T15:04:44.032Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T15:04:44.035Z] 🔍 Executing query:
+[2026-03-31T15:04:44.036Z] 📝 Query params:
+[2026-03-31T15:04:44.037Z] ✅ Direct query found 10 sales
+[2026-03-31T15:04:44.038Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T15:04:44.038Z] 🔎 First formatted sale with split payments:
+[2026-03-31T15:04:44.041Z] 4:04:44 PM [express] GET /api/sales 304 in 10ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custom…
+[2026-03-31T15:06:44.370Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T15:06:44.371Z] 🔍 Executing query:
+[2026-03-31T15:06:44.372Z] 📝 Query params:
+[2026-03-31T15:06:44.375Z] ✅ Direct query found 10 sales
+[2026-03-31T15:06:44.376Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T15:06:44.376Z] 🔎 First formatted sale with split payments:
+[2026-03-31T15:06:44.378Z] 4:06:44 PM [express] GET /api/sales 304 in 9ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custome…
+[2026-03-31T15:08:44.711Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T15:08:44.712Z] 🔍 Executing query:
+[2026-03-31T15:08:44.713Z] 📝 Query params:
+[2026-03-31T15:08:44.716Z] ✅ Direct query found 10 sales
+[2026-03-31T15:08:44.717Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T15:08:44.717Z] 🔎 First formatted sale with split payments:
+[2026-03-31T15:08:44.720Z] 4:08:44 PM [express] GET /api/sales 304 in 10ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custom…
+[2026-03-31T15:10:45.049Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T15:10:45.052Z] 🔍 Executing query:
+[2026-03-31T15:10:45.052Z] 📝 Query params:
+[2026-03-31T15:10:45.054Z] ✅ Direct query found 10 sales
+[2026-03-31T15:10:45.055Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T15:10:45.056Z] 🔎 First formatted sale with split payments:
+[2026-03-31T15:10:45.058Z] 4:10:45 PM [express] GET /api/sales 304 in 9ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custome…
+[2026-03-31T15:12:45.388Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T15:12:45.394Z] 🔍 Executing query:
+[2026-03-31T15:12:45.395Z] 📝 Query params:
+[2026-03-31T15:12:45.396Z] ✅ Direct query found 10 sales
+[2026-03-31T15:12:45.396Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T15:12:45.397Z] 🔎 First formatted sale with split payments:
+[2026-03-31T15:12:45.399Z] 4:12:45 PM [express] GET /api/sales 304 in 10ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custom…
+[2026-03-31T15:14:45.728Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T15:14:45.730Z] 🔍 Executing query:
+[2026-03-31T15:14:45.730Z] 📝 Query params:
+[2026-03-31T15:14:45.732Z] ✅ Direct query found 10 sales
+[2026-03-31T15:14:45.732Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T15:14:45.733Z] 🔎 First formatted sale with split payments:
+[2026-03-31T15:14:45.735Z] 4:14:45 PM [express] GET /api/sales 304 in 8ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custome…
+[2026-03-31T15:16:46.063Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T15:16:46.065Z] 🔍 Executing query:
+[2026-03-31T15:16:46.066Z] 📝 Query params:
+[2026-03-31T15:16:46.067Z] ✅ Direct query found 10 sales
+[2026-03-31T15:16:46.068Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T15:16:46.068Z] 🔎 First formatted sale with split payments:
+[2026-03-31T15:16:46.070Z] 4:16:46 PM [express] GET /api/sales 304 in 9ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custome…
+[2026-03-31T15:18:46.401Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T15:18:46.403Z] 🔍 Executing query:
+[2026-03-31T15:18:46.404Z] 📝 Query params:
+[2026-03-31T15:18:46.405Z] ✅ Direct query found 10 sales
+[2026-03-31T15:18:46.407Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T15:18:46.407Z] 🔎 First formatted sale with split payments:
+[2026-03-31T15:18:46.409Z] 4:18:46 PM [express] GET /api/sales 304 in 9ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custome…
+[2026-03-31T15:20:46.755Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T15:20:46.758Z] 🔍 Executing query:
+[2026-03-31T15:20:46.759Z] 📝 Query params:
+[2026-03-31T15:20:46.761Z] ✅ Direct query found 10 sales
+[2026-03-31T15:20:46.762Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T15:20:46.763Z] 🔎 First formatted sale with split payments:
+[2026-03-31T15:20:46.765Z] 4:20:46 PM [express] GET /api/sales 304 in 12ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custom…
+[2026-03-31T15:22:47.113Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T15:22:47.115Z] 🔍 Executing query:
+[2026-03-31T15:22:47.115Z] 📝 Query params:
+[2026-03-31T15:22:47.116Z] ✅ Direct query found 10 sales
+[2026-03-31T15:22:47.117Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T15:22:47.118Z] 🔎 First formatted sale with split payments:
+[2026-03-31T15:22:47.120Z] 4:22:47 PM [express] GET /api/sales 304 in 7ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custome…
+[2026-03-31T15:24:47.453Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T15:24:47.455Z] 🔍 Executing query:
+[2026-03-31T15:24:47.456Z] 📝 Query params:
+[2026-03-31T15:24:47.457Z] ✅ Direct query found 10 sales
+[2026-03-31T15:24:47.458Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T15:24:47.459Z] 🔎 First formatted sale with split payments:
+[2026-03-31T15:24:47.461Z] 4:24:47 PM [express] GET /api/sales 304 in 12ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custom…
+[2026-03-31T15:26:47.791Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T15:26:47.792Z] 🔍 Executing query:
+[2026-03-31T15:26:47.793Z] 📝 Query params:
+[2026-03-31T15:26:47.794Z] ✅ Direct query found 10 sales
+[2026-03-31T15:26:47.795Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T15:26:47.795Z] 🔎 First formatted sale with split payments:
+[2026-03-31T15:26:47.797Z] 4:26:47 PM [express] GET /api/sales 304 in 8ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custome…
+[2026-03-31T15:28:48.120Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T15:28:48.121Z] 🔍 Executing query:
+[2026-03-31T15:28:48.122Z] 📝 Query params:
+[2026-03-31T15:28:48.123Z] ✅ Direct query found 10 sales
+[2026-03-31T15:28:48.124Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T15:28:48.125Z] 🔎 First formatted sale with split payments:
+[2026-03-31T15:28:48.127Z] 4:28:48 PM [express] GET /api/sales 304 in 8ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custome…
+[2026-03-31T15:30:48.447Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T15:30:48.450Z] 🔍 Executing query:
+[2026-03-31T15:30:48.452Z] 📝 Query params:
+[2026-03-31T15:30:48.455Z] ✅ Direct query found 10 sales
+[2026-03-31T15:30:48.456Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T15:30:48.458Z] 🔎 First formatted sale with split payments:
+[2026-03-31T15:30:48.459Z] 4:30:48 PM [express] GET /api/sales 304 in 13ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custom…
+[2026-03-31T15:32:48.787Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T15:32:48.790Z] 🔍 Executing query:
+[2026-03-31T15:32:48.792Z] 📝 Query params:
+[2026-03-31T15:32:48.794Z] ✅ Direct query found 10 sales
+[2026-03-31T15:32:48.795Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T15:32:48.795Z] 🔎 First formatted sale with split payments:
+[2026-03-31T15:32:48.797Z] 4:32:48 PM [express] GET /api/sales 304 in 12ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custom…
+[2026-03-31T15:34:49.129Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T15:34:49.133Z] 🔍 Executing query:
+[2026-03-31T15:34:49.133Z] 📝 Query params:
+[2026-03-31T15:34:49.135Z] ✅ Direct query found 10 sales
+[2026-03-31T15:34:49.136Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T15:34:49.137Z] 🔎 First formatted sale with split payments:
+[2026-03-31T15:34:49.139Z] 4:34:49 PM [express] GET /api/sales 304 in 12ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custom…
+[2026-03-31T15:36:49.479Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T15:36:49.481Z] 🔍 Executing query:
+[2026-03-31T15:36:49.482Z] 📝 Query params:
+[2026-03-31T15:36:49.483Z] ✅ Direct query found 10 sales
+[2026-03-31T15:36:49.486Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T15:36:49.487Z] 🔎 First formatted sale with split payments:
+[2026-03-31T15:36:49.489Z] 4:36:49 PM [express] GET /api/sales 304 in 11ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custom…
+[2026-03-31T15:38:49.824Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T15:38:49.829Z] 🔍 Executing query:
+[2026-03-31T15:38:49.829Z] 📝 Query params:
+[2026-03-31T15:38:49.832Z] ✅ Direct query found 10 sales
+[2026-03-31T15:38:49.833Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T15:38:49.833Z] 🔎 First formatted sale with split payments:
+[2026-03-31T15:38:49.835Z] 4:38:49 PM [express] GET /api/sales 304 in 13ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custom…
+[2026-03-31T15:40:50.162Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T15:40:50.171Z] 🔍 Executing query:
+[2026-03-31T15:40:50.171Z] 📝 Query params:
+[2026-03-31T15:40:50.173Z] ✅ Direct query found 10 sales
+[2026-03-31T15:40:50.174Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T15:40:50.174Z] 🔎 First formatted sale with split payments:
+[2026-03-31T15:40:50.177Z] 4:40:50 PM [express] GET /api/sales 304 in 16ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custom…
+[2026-03-31T15:42:50.499Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T15:42:50.504Z] 🔍 Executing query:
+[2026-03-31T15:42:50.505Z] 📝 Query params:
+[2026-03-31T15:42:50.507Z] ✅ Direct query found 10 sales
+[2026-03-31T15:42:50.509Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T15:42:50.510Z] 🔎 First formatted sale with split payments:
+[2026-03-31T15:42:50.512Z] 4:42:50 PM [express] GET /api/sales 304 in 14ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custom…
+[2026-03-31T15:44:50.858Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T15:44:50.866Z] 🔍 Executing query:
+[2026-03-31T15:44:50.866Z] 📝 Query params:
+[2026-03-31T15:44:50.868Z] ✅ Direct query found 10 sales
+[2026-03-31T15:44:50.869Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T15:44:50.871Z] 🔎 First formatted sale with split payments:
+[2026-03-31T15:44:50.879Z] 4:44:50 PM [express] GET /api/sales 304 in 22ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custom…
+[2026-03-31T15:46:51.206Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T15:46:51.208Z] 🔍 Executing query:
+[2026-03-31T15:46:51.209Z] 📝 Query params:
+[2026-03-31T15:46:51.211Z] ✅ Direct query found 10 sales
+[2026-03-31T15:46:51.213Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T15:46:51.214Z] 🔎 First formatted sale with split payments:
+[2026-03-31T15:46:51.216Z] 4:46:51 PM [express] GET /api/sales 304 in 11ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custom…
+[2026-03-31T15:48:51.547Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T15:48:51.551Z] 🔍 Executing query:
+[2026-03-31T15:48:51.552Z] 📝 Query params:
+[2026-03-31T15:48:51.553Z] ✅ Direct query found 10 sales
+[2026-03-31T15:48:51.555Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T15:48:51.555Z] 🔎 First formatted sale with split payments:
+[2026-03-31T15:48:51.557Z] 4:48:51 PM [express] GET /api/sales 304 in 11ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custom…
+[2026-03-31T15:50:51.888Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T15:50:51.890Z] 🔍 Executing query:
+[2026-03-31T15:50:51.891Z] 📝 Query params:
+[2026-03-31T15:50:51.893Z] ✅ Direct query found 10 sales
+[2026-03-31T15:50:51.894Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T15:50:51.894Z] 🔎 First formatted sale with split payments:
+[2026-03-31T15:50:51.896Z] 4:50:51 PM [express] GET /api/sales 304 in 14ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custom…
+[2026-03-31T15:52:52.225Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T15:52:52.229Z] 🔍 Executing query:
+[2026-03-31T15:52:52.230Z] 📝 Query params:
+[2026-03-31T15:52:52.232Z] ✅ Direct query found 10 sales
+[2026-03-31T15:52:52.233Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T15:52:52.233Z] 🔎 First formatted sale with split payments:
+[2026-03-31T15:52:52.235Z] 4:52:52 PM [express] GET /api/sales 304 in 12ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custom…
+[2026-03-31T15:54:52.564Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T15:54:52.573Z] 🔍 Executing query:
+[2026-03-31T15:54:52.574Z] 📝 Query params:
+[2026-03-31T15:54:52.575Z] ✅ Direct query found 10 sales
+[2026-03-31T15:54:52.576Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T15:54:52.577Z] 🔎 First formatted sale with split payments:
+[2026-03-31T15:54:52.579Z] 4:54:52 PM [express] GET /api/sales 304 in 16ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custom…
+[2026-03-31T15:56:52.907Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T15:56:52.911Z] 🔍 Executing query:
+[2026-03-31T15:56:52.912Z] 📝 Query params:
+[2026-03-31T15:56:52.914Z] ✅ Direct query found 10 sales
+[2026-03-31T15:56:52.915Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T15:56:52.916Z] 🔎 First formatted sale with split payments:
+[2026-03-31T15:56:52.921Z] 4:56:52 PM [express] GET /api/sales 304 in 16ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custom…
+[2026-03-31T15:58:53.259Z] 📊 Sales API endpoint accessed with query:
+[2026-03-31T15:58:53.264Z] 🔍 Executing query:
+[2026-03-31T15:58:53.265Z] 📝 Query params:
+[2026-03-31T15:58:53.266Z] ✅ Direct query found 10 sales
+[2026-03-31T15:58:53.267Z] 📦 Found 10 sale items for 10 sales
+[2026-03-31T15:58:53.267Z] 🔎 First formatted sale with split payments:
+[2026-03-31T15:58:53.269Z] 4:58:53 PM [express] GET /api/sales 304 in 12ms :: [{"id":39,"orderNumber":"POSS2YYL6L5AV9B","custom…
+[2026-03-31T15:59:44.136Z] 🔄 Creating database tables...
+[2026-03-31T15:59:44.141Z] ✅ All tables created successfully
+[2026-03-31T15:59:44.143Z] 🔄 Verifying stock_quantity affinity...
+[2026-03-31T15:59:44.147Z] 🎉 Database initialization completed successfully!
+[2026-03-31T15:59:44.156Z] 🔄 Initializing database...
+[2026-03-31T15:59:44.165Z] 🔄 Creating database tables...
+[2026-03-31T15:59:44.167Z] ✅ All tables created successfully
+[2026-03-31T15:59:44.168Z] 🔄 Verifying stock_quantity affinity...
+[2026-03-31T15:59:44.170Z] 🎉 Database initialization completed successfully!
+[2026-03-31T15:59:44.174Z] ✅ Database initialized successfully
+[2026-03-31T15:59:44.314Z] 4:59:44 PM [express] serving on port 5004
+[2026-03-31T15:59:54.389Z] 🔄 Creating database tables...
+[2026-03-31T15:59:54.392Z] ✅ All tables created successfully
+[2026-03-31T15:59:54.392Z] 🔄 Verifying stock_quantity affinity...
+[2026-03-31T15:59:54.395Z] 🎉 Database initialization completed successfully!
+[2026-03-31T15:59:54.405Z] 🔄 Initializing database...
+[2026-03-31T15:59:54.410Z] 🔄 Creating database tables...
+[2026-03-31T15:59:54.412Z] ✅ All tables created successfully
+[2026-03-31T15:59:54.412Z] 🔄 Verifying stock_quantity affinity...
+[2026-03-31T15:59:54.415Z] 🎉 Database initialization completed successfully!
+[2026-03-31T15:59:54.415Z] ✅ Database initialized successfully
+[2026-03-31T15:59:54.542Z] 4:59:54 PM [express] serving on port 5004
+[2026-03-31T16:00:04.218Z] 🔄 Creating database tables...
+[2026-03-31T16:00:04.221Z] ✅ All tables created successfully
+[2026-03-31T16:00:04.221Z] 🔄 Verifying stock_quantity affinity...
+[2026-03-31T16:00:04.223Z] 🎉 Database initialization completed successfully!
+[2026-03-31T16:00:04.234Z] 🔄 Initializing database...
+[2026-03-31T16:00:04.240Z] 🔄 Creating database tables...
+[2026-03-31T16:00:04.242Z] ✅ All tables created successfully
+[2026-03-31T16:00:04.243Z] 🔄 Verifying stock_quantity affinity...
+[2026-03-31T16:00:04.246Z] 🎉 Database initialization completed successfully!
+[2026-03-31T16:00:04.247Z] ✅ Database initialized successfully
+[2026-03-31T16:00:04.409Z] 5:00:04 PM [express] serving on port 5004
+[2026-03-31T16:00:14.873Z] 🔄 Creating database tables...
+[2026-03-31T16:00:14.878Z] ✅ All tables created successfully
+[2026-03-31T16:00:14.878Z] 🔄 Verifying stock_quantity affinity...
+[2026-03-31T16:00:14.880Z] 🎉 Database initialization completed successfully!
+[2026-03-31T16:00:14.892Z] 🔄 Initializing database...
+[2026-03-31T16:00:14.897Z] 🔄 Creating database tables...
+[2026-03-31T16:00:14.899Z] ✅ All tables created successfully
+[2026-03-31T16:00:14.900Z] 🔄 Verifying stock_quantity affinity...
+[2026-03-31T16:00:14.902Z] 🎉 Database initialization completed successfully!
+[2026-03-31T16:00:14.907Z] ✅ Database initialized successfully
+[2026-03-31T16:00:15.042Z] 5:00:15 PM [express] serving on port 5004
+[2026-03-31T16:02:06.027Z] 🔄 Creating database tables...
+[2026-03-31T16:02:06.030Z] ✅ All tables created successfully
+[2026-03-31T16:02:06.030Z] 🔄 Verifying stock_quantity affinity...
+[2026-03-31T16:02:06.034Z] 🎉 Database initialization completed successfully!
+[2026-03-31T16:02:06.046Z] 🔄 Initializing database...
+[2026-03-31T16:02:06.058Z] 🔄 Creating database tables...
+[2026-03-31T16:02:06.060Z] ✅ All tables created successfully
+[2026-03-31T16:02:06.060Z] 🔄 Verifying stock_quantity affinity...
+[2026-03-31T16:02:06.062Z] 🎉 Database initialization completed successfully!
+[2026-03-31T16:02:06.065Z] ✅ Database initialized successfully
+[2026-03-31T16:02:06.285Z] 5:02:06 PM [express] serving on port 5004
+[2026-03-31T16:02:59.737Z] 🔄 Creating database tables...
+[2026-03-31T16:02:59.742Z] ✅ All tables created successfully
+[2026-03-31T16:02:59.743Z] 🔄 Verifying stock_quantity affinity...
+[2026-03-31T16:02:59.748Z] 🎉 Database initialization completed successfully!
+[2026-03-31T16:02:59.759Z] 🔄 Initializing database...
+[2026-03-31T16:02:59.778Z] 🔄 Creating database tables...
+[2026-03-31T16:02:59.783Z] ✅ All tables created successfully
+[2026-03-31T16:02:59.784Z] 🔄 Verifying stock_quantity affinity...
+[2026-03-31T16:02:59.789Z] 🎉 Database initialization completed successfully!
+[2026-03-31T16:02:59.789Z] ✅ Database initialized successfully
+[2026-03-31T16:03:00.217Z] 5:03:00 PM [express] serving on port 5004

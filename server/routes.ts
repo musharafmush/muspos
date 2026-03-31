@@ -751,13 +751,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         department: req.body.department || '',
         brand: req.body.brand || '',
         buyer: req.body.buyer || '',
-        purchaseGstCalculatedOn: req.body.purchaseGstCalculatedOn || 'MRP',
-        gstUom: req.body.gstUom || 'PIECES',
-        purchaseAbatement: req.body.purchaseAbatement || '',
-
-        // Configuration Options
-        configItemWithCommodity: req.body.configItemWithCommodity || false,
-        seniorExemptApplicable: req.body.seniorExemptApplicable || false,
         eanCodeRequired: req.body.eanCodeRequired || false,
         weightsPerUnit: req.body.weightsPerUnit || '1',
         batchExpiryDetails: req.body.batchExpiryDetails || 'Not Required',
