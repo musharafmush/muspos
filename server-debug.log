@@ -2248,3 +2248,29 @@
 [2026-03-31T16:31:48.071Z] 🎉 Database initialization completed successfully!
 [2026-03-31T16:31:48.072Z] ✅ Database initialized successfully
 [2026-03-31T16:31:48.369Z] 5:31:48 PM [express] serving on port 5004
+[2026-03-31T16:32:54.124Z] 🚩 Checkpoint M0: sqlite-migrate.ts starting execution
+[2026-03-31T16:32:54.125Z] 🚩 Checkpoint M_LOADED: sqlite-migrate.ts finished loading
+[2026-03-31T16:32:54.132Z] 🚩 Checkpoint 1: Express initialized
+[2026-03-31T16:32:54.140Z] 🚩 Checkpoint 2: Middleware configured
+[2026-03-31T16:32:54.141Z] 🚩 Checkpoint 3: Entering async block
+[2026-03-31T16:32:54.142Z] 🔄 Initializing database...
+[2026-03-31T16:32:54.145Z] 🚩 Checkpoint M0: Pragma skipped in migrations
+[2026-03-31T16:32:54.156Z] 🔄 Creating database tables...
+[2026-03-31T16:32:54.159Z] ✅ All tables created successfully
+[2026-03-31T16:32:54.160Z] 🔄 Verifying stock_quantity affinity...
+[2026-03-31T16:32:54.163Z] 🎉 Database initialization completed successfully!
+[2026-03-31T16:32:54.164Z] ✅ Database initialized successfully
+[2026-03-31T16:32:54.430Z] 5:32:54 PM [express] serving on port 5004
+[2026-03-31T16:33:59.369Z] 🚩 Checkpoint M0: sqlite-migrate.ts starting execution
+[2026-03-31T16:33:59.370Z] 🚩 Checkpoint M_LOADED: sqlite-migrate.ts finished loading
+[2026-03-31T16:33:59.379Z] 🚩 Checkpoint 1: Express initialized
+[2026-03-31T16:33:59.385Z] 🚩 Checkpoint 2: Middleware configured
+[2026-03-31T16:33:59.386Z] 🚩 Checkpoint 3: Entering async block
+[2026-03-31T16:33:59.386Z] 🔄 Initializing database...
+[2026-03-31T16:33:59.394Z] 🚩 Checkpoint M0: Pragma skipped in migrations
+[2026-03-31T16:33:59.400Z] 🔄 Creating database tables...
+[2026-03-31T16:33:59.403Z] ✅ All tables created successfully
+[2026-03-31T16:33:59.403Z] 🔄 Verifying stock_quantity affinity...
+[2026-03-31T16:33:59.412Z] 🎉 Database initialization completed successfully!
+[2026-03-31T16:33:59.413Z] ✅ Database initialized successfully
+[2026-03-31T16:33:59.618Z] 5:33:59 PM [express] serving on port 5004
