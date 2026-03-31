@@ -1,4 +1,5 @@
 import { db, sqlite as sqliteInstance } from "../db/index.js";
+console.log('🚩 Checkpoint S1: storage.ts starting execution');
 import {
   users,
   products,

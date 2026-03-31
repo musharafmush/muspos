@@ -1,3 +1,4 @@
+console.log('🚩 Checkpoint M0: sqlite-migrate.ts starting execution');
 import Database from 'better-sqlite3';
 import path from 'path';
 import bcrypt from 'bcryptjs';
@@ -881,7 +882,6 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
   db.close();
   console.log('🎉 Database initialization completed successfully!');
 }
+console.log('🚩 Checkpoint M_LOADED: sqlite-migrate.ts finished loading');
 
-if (import.meta.url.includes('sqlite-migrate.ts') || process.argv[1].endsWith('sqlite-migrate.ts')) {
-   initializeDatabase().catch(console.error);
-}
+// Self-execution removed to prevent duplicate initialization when imported by server.
