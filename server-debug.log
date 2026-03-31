@@ -2091,3 +2091,17 @@
 [2026-03-31T16:02:59.789Z] 🎉 Database initialization completed successfully!
 [2026-03-31T16:02:59.789Z] ✅ Database initialized successfully
 [2026-03-31T16:03:00.217Z] 5:03:00 PM [express] serving on port 5004
+[2026-03-31T16:08:20.870Z] 🔄 Creating database tables...
+[2026-03-31T16:08:20.875Z] ✅ All tables created successfully
+[2026-03-31T16:08:20.876Z] 🔄 Verifying stock_quantity affinity...
+[2026-03-31T16:08:20.879Z] 🎉 Database initialization completed successfully!
+[2026-03-31T16:08:20.884Z] 🚩 Checkpoint 1: Express initialized
+[2026-03-31T16:08:20.891Z] 🚩 Checkpoint 2: Middleware configured
+[2026-03-31T16:08:20.891Z] 🚩 Checkpoint 3: Entering async block
+[2026-03-31T16:08:20.892Z] 🔄 Initializing database...
+[2026-03-31T16:08:20.898Z] 🔄 Creating database tables...
+[2026-03-31T16:08:20.900Z] ✅ All tables created successfully
+[2026-03-31T16:08:20.900Z] 🔄 Verifying stock_quantity affinity...
+[2026-03-31T16:08:20.903Z] 🎉 Database initialization completed successfully!
+[2026-03-31T16:08:20.903Z] ✅ Database initialized successfully
+[2026-03-31T16:08:21.037Z] 5:08:21 PM [express] serving on port 5004

@@ -8,9 +8,11 @@ import { sqlite } from "../db/sqlite-index.js";
 
 
 const app = express();
+console.log('🚩 Checkpoint 1: Express initialized');
 // Parse JSON with appropriate limits for backup files (reduced to prevent memory issues)
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+console.log('🚩 Checkpoint 2: Middleware configured');
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -42,6 +44,7 @@ app.use((req, res, next) => {
   next();
 });
 
+console.log('🚩 Checkpoint 3: Entering async block');
 (async () => {
   try {
     console.log('🔄 Initializing database...');

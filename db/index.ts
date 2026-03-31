@@ -11,6 +11,7 @@ const __dirname = path.dirname(__filename);
 const dbPath = path.join(__dirname, '..', 'pos-data.db');
 console.log('Diagnostic: SQLite DB Path:', dbPath);
 const sqlite = new Database(dbPath);
+console.log('🚩 Checkpoint 0: Database constructor finished');
 sqlite.pragma('foreign_keys = ON');
 
 export const db = drizzle(sqlite, { schema });
