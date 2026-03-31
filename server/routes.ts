@@ -56,13 +56,8 @@ function logToFile(msg: string) {
   fs.appendFileSync(LOG_FILE, line);
 }
 
-// Redirect standard logs
-console.log = (msg) => {
-  logToFile(typeof msg === 'string' ? msg : JSON.stringify(msg));
-};
-console.error = (msg) => {
-  logToFile(`ERROR: ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`);
-};
+// Redirect standard logs removed to prevent hidden crashes and circular JSON errors
+
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Configure session storage for desktop SQLite mode
