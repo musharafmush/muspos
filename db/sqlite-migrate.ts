@@ -698,365 +698,365 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
 
   // tax_settings
   db.exec(`
-    CREATE TABLE IF NOT EXISTS `tax_settings` (
-	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`tax_calculation_method` text DEFAULT 'afterDiscount',
-	`prices_include_tax` integer DEFAULT false,
-	`enable_multiple_tax_rates` integer DEFAULT true,
-	`company_gstin` text,
-	`company_state` text,
-	`company_state_code` text,
-	`default_tax_category_id` integer,
-	`updated_at` text DEFAULT '2026-03-31T17:45:31.377Z' NOT NULL,
-	FOREIGN KEY (`default_tax_category_id`) REFERENCES `tax_categories`(`id`) ON UPDATE no action ON DELETE no action
+    CREATE TABLE IF NOT EXISTS "tax_settings" (
+	"id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	"tax_calculation_method" text DEFAULT 'afterDiscount',
+	"prices_include_tax" integer DEFAULT false,
+	"enable_multiple_tax_rates" integer DEFAULT true,
+	"company_gstin" text,
+	"company_state" text,
+	"company_state_code" text,
+	"default_tax_category_id" integer,
+	"updated_at" text DEFAULT '2026-03-31T17:45:31.377Z' NOT NULL,
+	FOREIGN KEY ("default_tax_category_id") REFERENCES "tax_categories"("id") ON UPDATE no action ON DELETE no action
 );
   `);
 
   // inventory_adjustments
   db.exec(`
-    CREATE TABLE IF NOT EXISTS `inventory_adjustments` (
-	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`product_id` integer NOT NULL,
-	`type` text NOT NULL,
-	`quantity` real NOT NULL,
-	`previous_quantity` real NOT NULL,
-	`new_quantity` real NOT NULL,
-	`reason` text,
-	`notes` text,
-	`user_id` integer NOT NULL,
-	`created_at` text DEFAULT '2026-03-31T17:45:31.380Z' NOT NULL,
-	FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
+    CREATE TABLE IF NOT EXISTS "inventory_adjustments" (
+	"id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	"product_id" integer NOT NULL,
+	"type" text NOT NULL,
+	"quantity" real NOT NULL,
+	"previous_quantity" real NOT NULL,
+	"new_quantity" real NOT NULL,
+	"reason" text,
+	"notes" text,
+	"user_id" integer NOT NULL,
+	"created_at" text DEFAULT '2026-03-31T17:45:31.380Z' NOT NULL,
+	FOREIGN KEY ("product_id") REFERENCES "products"("id") ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY ("user_id") REFERENCES "users"("id") ON UPDATE no action ON DELETE no action
 );
   `);
 
   // manufacturing_orders
   db.exec(`
-    CREATE TABLE IF NOT EXISTS `manufacturing_orders` (
-	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`order_number` text NOT NULL,
-	`product_id` integer NOT NULL,
-	`quantity` real NOT NULL,
-	`required_quantity` real NOT NULL,
-	`produced_quantity` real DEFAULT 0,
-	`status` text DEFAULT 'pending',
-	`priority` text DEFAULT 'medium',
-	`start_date` text,
-	`expected_completion_date` text,
-	`actual_completion_date` text,
-	`assigned_to` integer,
-	`created_by` integer,
-	`notes` text,
-	`estimated_cost` real,
-	`actual_cost` real,
-	`created_at` text DEFAULT '2026-03-31T17:45:31.400Z' NOT NULL,
-	`updated_at` text DEFAULT '2026-03-31T17:45:31.400Z' NOT NULL,
-	FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`assigned_to`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
+    CREATE TABLE IF NOT EXISTS "manufacturing_orders" (
+	"id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	"order_number" text NOT NULL,
+	"product_id" integer NOT NULL,
+	"quantity" real NOT NULL,
+	"required_quantity" real NOT NULL,
+	"produced_quantity" real DEFAULT 0,
+	"status" text DEFAULT 'pending',
+	"priority" text DEFAULT 'medium',
+	"start_date" text,
+	"expected_completion_date" text,
+	"actual_completion_date" text,
+	"assigned_to" integer,
+	"created_by" integer,
+	"notes" text,
+	"estimated_cost" real,
+	"actual_cost" real,
+	"created_at" text DEFAULT '2026-03-31T17:45:31.400Z' NOT NULL,
+	"updated_at" text DEFAULT '2026-03-31T17:45:31.400Z' NOT NULL,
+	FOREIGN KEY ("product_id") REFERENCES "products"("id") ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY ("assigned_to") REFERENCES "users"("id") ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY ("created_by") REFERENCES "users"("id") ON UPDATE no action ON DELETE no action
 );
   `);
 
   // manufacturing_batches
   db.exec(`
-    CREATE TABLE IF NOT EXISTS `manufacturing_batches` (
-	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`manufacturing_order_id` integer NOT NULL,
-	`batch_number` text NOT NULL,
-	`quantity` real NOT NULL,
-	`status` text DEFAULT 'in_progress',
-	`start_time` text,
-	`end_time` text,
-	`quality_status` text DEFAULT 'pending',
-	`notes` text,
-	`created_at` text DEFAULT '2026-03-31T17:45:31.401Z' NOT NULL,
-	`updated_at` text DEFAULT '2026-03-31T17:45:31.401Z' NOT NULL,
-	FOREIGN KEY (`manufacturing_order_id`) REFERENCES `manufacturing_orders`(`id`) ON UPDATE no action ON DELETE no action
+    CREATE TABLE IF NOT EXISTS "manufacturing_batches" (
+	"id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	"manufacturing_order_id" integer NOT NULL,
+	"batch_number" text NOT NULL,
+	"quantity" real NOT NULL,
+	"status" text DEFAULT 'in_progress',
+	"start_time" text,
+	"end_time" text,
+	"quality_status" text DEFAULT 'pending',
+	"notes" text,
+	"created_at" text DEFAULT '2026-03-31T17:45:31.401Z' NOT NULL,
+	"updated_at" text DEFAULT '2026-03-31T17:45:31.401Z' NOT NULL,
+	FOREIGN KEY ("manufacturing_order_id") REFERENCES "manufacturing_orders"("id") ON UPDATE no action ON DELETE no action
 );
   `);
 
   // manufacturing_recipes
   db.exec(`
-    CREATE TABLE IF NOT EXISTS `manufacturing_recipes` (
-	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`product_id` integer NOT NULL,
-	`name` text NOT NULL,
-	`description` text,
-	`version` text DEFAULT '1.0',
-	`instructions` text,
-	`preparation_time` integer,
-	`cooking_time` integer,
-	`total_time` integer,
-	`difficulty` text DEFAULT 'medium',
-	`servings` integer DEFAULT 1,
-	`active` integer DEFAULT true,
-	`created_by` integer,
-	`created_at` text DEFAULT '2026-03-31T17:45:31.401Z' NOT NULL,
-	`updated_at` text DEFAULT '2026-03-31T17:45:31.401Z' NOT NULL,
-	FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
+    CREATE TABLE IF NOT EXISTS "manufacturing_recipes" (
+	"id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	"product_id" integer NOT NULL,
+	"name" text NOT NULL,
+	"description" text,
+	"version" text DEFAULT '1.0',
+	"instructions" text,
+	"preparation_time" integer,
+	"cooking_time" integer,
+	"total_time" integer,
+	"difficulty" text DEFAULT 'medium',
+	"servings" integer DEFAULT 1,
+	"active" integer DEFAULT true,
+	"created_by" integer,
+	"created_at" text DEFAULT '2026-03-31T17:45:31.401Z' NOT NULL,
+	"updated_at" text DEFAULT '2026-03-31T17:45:31.401Z' NOT NULL,
+	FOREIGN KEY ("product_id") REFERENCES "products"("id") ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY ("created_by") REFERENCES "users"("id") ON UPDATE no action ON DELETE no action
 );
   `);
 
   // recipe_ingredients
   db.exec(`
-    CREATE TABLE IF NOT EXISTS `recipe_ingredients` (
-	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`recipe_id` integer NOT NULL,
-	`raw_material_id` integer NOT NULL,
-	`quantity` real NOT NULL,
-	`unit` text NOT NULL,
-	`notes` text,
-	`optional` integer DEFAULT false,
-	`created_at` text DEFAULT '2026-03-31T17:45:31.401Z' NOT NULL,
-	FOREIGN KEY (`recipe_id`) REFERENCES `manufacturing_recipes`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`raw_material_id`) REFERENCES `raw_materials`(`id`) ON UPDATE no action ON DELETE no action
+    CREATE TABLE IF NOT EXISTS "recipe_ingredients" (
+	"id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	"recipe_id" integer NOT NULL,
+	"raw_material_id" integer NOT NULL,
+	"quantity" real NOT NULL,
+	"unit" text NOT NULL,
+	"notes" text,
+	"optional" integer DEFAULT false,
+	"created_at" text DEFAULT '2026-03-31T17:45:31.401Z' NOT NULL,
+	FOREIGN KEY ("recipe_id") REFERENCES "manufacturing_recipes"("id") ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY ("raw_material_id") REFERENCES "raw_materials"("id") ON UPDATE no action ON DELETE no action
 );
   `);
 
   // employees
   db.exec(`
-    CREATE TABLE IF NOT EXISTS `employees` (
-	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`user_id` integer NOT NULL,
-	`employee_id` text NOT NULL,
-	`department` text NOT NULL,
-	`designation` text NOT NULL,
-	`date_of_joining` text NOT NULL,
-	`date_of_birth` text,
-	`gender` text,
-	`marital_status` text,
-	`address` text,
-	`phone_number` text,
-	`emergency_contact` text,
-	`emergency_phone` text,
-	`bank_account_number` text,
-	`bank_name` text,
-	`ifsc_code` text,
-	`pan_number` text,
-	`aadhar_number` text,
-	`pf_number` text,
-	`esi_number` text,
-	`employment_type` text DEFAULT 'full_time',
-	`status` text DEFAULT 'active',
-	`is_active` integer DEFAULT true,
-	`created_at` text DEFAULT '2026-03-31T17:45:31.411Z' NOT NULL,
-	`updated_at` text DEFAULT '2026-03-31T17:45:31.411Z' NOT NULL,
-	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
+    CREATE TABLE IF NOT EXISTS "employees" (
+	"id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	"user_id" integer NOT NULL,
+	"employee_id" text NOT NULL,
+	"department" text NOT NULL,
+	"designation" text NOT NULL,
+	"date_of_joining" text NOT NULL,
+	"date_of_birth" text,
+	"gender" text,
+	"marital_status" text,
+	"address" text,
+	"phone_number" text,
+	"emergency_contact" text,
+	"emergency_phone" text,
+	"bank_account_number" text,
+	"bank_name" text,
+	"ifsc_code" text,
+	"pan_number" text,
+	"aadhar_number" text,
+	"pf_number" text,
+	"esi_number" text,
+	"employment_type" text DEFAULT 'full_time',
+	"status" text DEFAULT 'active',
+	"is_active" integer DEFAULT true,
+	"created_at" text DEFAULT '2026-03-31T17:45:31.411Z' NOT NULL,
+	"updated_at" text DEFAULT '2026-03-31T17:45:31.411Z' NOT NULL,
+	FOREIGN KEY ("user_id") REFERENCES "users"("id") ON UPDATE no action ON DELETE no action
 );
   `);
 
   // salary_structures
   db.exec(`
-    CREATE TABLE IF NOT EXISTS `salary_structures` (
-	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`employee_id` integer NOT NULL,
-	`basic_salary` real NOT NULL,
-	`hra` real DEFAULT 0,
-	`da` real DEFAULT 0,
-	`conveyance_allowance` real DEFAULT 0,
-	`medical_allowance` real DEFAULT 0,
-	`special_allowance` real DEFAULT 0,
-	`other_allowances` real DEFAULT 0,
-	`pf_employee_contribution` real DEFAULT 0,
-	`pf_employer_contribution` real DEFAULT 0,
-	`esi_employee_contribution` real DEFAULT 0,
-	`esi_employer_contribution` real DEFAULT 0,
-	`professional_tax` real DEFAULT 0,
-	`income_tax` real DEFAULT 0,
-	`other_deductions` real DEFAULT 0,
-	`gross_salary` real NOT NULL,
-	`net_salary` real NOT NULL,
-	`effective_from` text NOT NULL,
-	`effective_to` text,
-	`is_active` integer DEFAULT true,
-	`created_by` integer,
-	`created_at` text DEFAULT '2026-03-31T17:45:31.411Z' NOT NULL,
-	`updated_at` text DEFAULT '2026-03-31T17:45:31.411Z' NOT NULL,
-	FOREIGN KEY (`employee_id`) REFERENCES `employees`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
+    CREATE TABLE IF NOT EXISTS "salary_structures" (
+	"id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	"employee_id" integer NOT NULL,
+	"basic_salary" real NOT NULL,
+	"hra" real DEFAULT 0,
+	"da" real DEFAULT 0,
+	"conveyance_allowance" real DEFAULT 0,
+	"medical_allowance" real DEFAULT 0,
+	"special_allowance" real DEFAULT 0,
+	"other_allowances" real DEFAULT 0,
+	"pf_employee_contribution" real DEFAULT 0,
+	"pf_employer_contribution" real DEFAULT 0,
+	"esi_employee_contribution" real DEFAULT 0,
+	"esi_employer_contribution" real DEFAULT 0,
+	"professional_tax" real DEFAULT 0,
+	"income_tax" real DEFAULT 0,
+	"other_deductions" real DEFAULT 0,
+	"gross_salary" real NOT NULL,
+	"net_salary" real NOT NULL,
+	"effective_from" text NOT NULL,
+	"effective_to" text,
+	"is_active" integer DEFAULT true,
+	"created_by" integer,
+	"created_at" text DEFAULT '2026-03-31T17:45:31.411Z' NOT NULL,
+	"updated_at" text DEFAULT '2026-03-31T17:45:31.411Z' NOT NULL,
+	FOREIGN KEY ("employee_id") REFERENCES "employees"("id") ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY ("created_by") REFERENCES "users"("id") ON UPDATE no action ON DELETE no action
 );
   `);
 
   // attendance
   db.exec(`
-    CREATE TABLE IF NOT EXISTS `attendance` (
-	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`employee_id` integer NOT NULL,
-	`date` text NOT NULL,
-	`check_in_time` text,
-	`check_out_time` text,
-	`total_hours` real DEFAULT 0,
-	`overtime_hours` real DEFAULT 0,
-	`status` text DEFAULT 'present',
-	`notes` text,
-	`location` text,
-	`is_manual_entry` integer DEFAULT false,
-	`approved_by` integer,
-	`created_at` text DEFAULT '2026-03-31T17:45:31.412Z' NOT NULL,
-	`updated_at` text DEFAULT '2026-03-31T17:45:31.412Z' NOT NULL,
-	FOREIGN KEY (`employee_id`) REFERENCES `employees`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`approved_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
+    CREATE TABLE IF NOT EXISTS "attendance" (
+	"id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	"employee_id" integer NOT NULL,
+	"date" text NOT NULL,
+	"check_in_time" text,
+	"check_out_time" text,
+	"total_hours" real DEFAULT 0,
+	"overtime_hours" real DEFAULT 0,
+	"status" text DEFAULT 'present',
+	"notes" text,
+	"location" text,
+	"is_manual_entry" integer DEFAULT false,
+	"approved_by" integer,
+	"created_at" text DEFAULT '2026-03-31T17:45:31.412Z' NOT NULL,
+	"updated_at" text DEFAULT '2026-03-31T17:45:31.412Z' NOT NULL,
+	FOREIGN KEY ("employee_id") REFERENCES "employees"("id") ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY ("approved_by") REFERENCES "users"("id") ON UPDATE no action ON DELETE no action
 );
   `);
 
   // leave_applications
   db.exec(`
-    CREATE TABLE IF NOT EXISTS `leave_applications` (
-	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`employee_id` integer NOT NULL,
-	`leave_type` text NOT NULL,
-	`from_date` text NOT NULL,
-	`to_date` text NOT NULL,
-	`total_days` real NOT NULL,
-	`reason` text NOT NULL,
-	`status` text DEFAULT 'pending',
-	`applied_date` text DEFAULT '2026-03-31T17:45:31.412Z' NOT NULL,
-	`reviewed_by` integer,
-	`reviewed_date` text,
-	`review_comments` text,
-	`emergency_contact` text,
-	`is_half_day` integer DEFAULT false,
-	`created_at` text DEFAULT '2026-03-31T17:45:31.412Z' NOT NULL,
-	`updated_at` text DEFAULT '2026-03-31T17:45:31.412Z' NOT NULL,
-	FOREIGN KEY (`employee_id`) REFERENCES `employees`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`reviewed_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
+    CREATE TABLE IF NOT EXISTS "leave_applications" (
+	"id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	"employee_id" integer NOT NULL,
+	"leave_type" text NOT NULL,
+	"from_date" text NOT NULL,
+	"to_date" text NOT NULL,
+	"total_days" real NOT NULL,
+	"reason" text NOT NULL,
+	"status" text DEFAULT 'pending',
+	"applied_date" text DEFAULT '2026-03-31T17:45:31.412Z' NOT NULL,
+	"reviewed_by" integer,
+	"reviewed_date" text,
+	"review_comments" text,
+	"emergency_contact" text,
+	"is_half_day" integer DEFAULT false,
+	"created_at" text DEFAULT '2026-03-31T17:45:31.412Z' NOT NULL,
+	"updated_at" text DEFAULT '2026-03-31T17:45:31.412Z' NOT NULL,
+	FOREIGN KEY ("employee_id") REFERENCES "employees"("id") ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY ("reviewed_by") REFERENCES "users"("id") ON UPDATE no action ON DELETE no action
 );
   `);
 
   // payroll_records
   db.exec(`
-    CREATE TABLE IF NOT EXISTS `payroll_records` (
-	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`employee_id` integer NOT NULL,
-	`salary_structure_id` integer NOT NULL,
-	`payroll_month` text NOT NULL,
-	`working_days` real NOT NULL,
-	`present_days` real NOT NULL,
-	`absent_days` real DEFAULT 0,
-	`leave_days` real DEFAULT 0,
-	`half_days` real DEFAULT 0,
-	`overtime_hours` real DEFAULT 0,
-	`overtime_amount` real DEFAULT 0,
-	`basic_salary_earned` real NOT NULL,
-	`allowances_earned` real NOT NULL,
-	`deductions_applied` real NOT NULL,
-	`gross_salary_earned` real NOT NULL,
-	`net_salary_earned` real NOT NULL,
-	`bonus_amount` real DEFAULT 0,
-	`incentive_amount` real DEFAULT 0,
-	`advance_taken` real DEFAULT 0,
-	`loan_deduction` real DEFAULT 0,
-	`status` text DEFAULT 'draft',
-	`processed_date` text,
-	`paid_date` text,
-	`payment_method` text,
-	`bank_transaction_id` text,
-	`notes` text,
-	`processed_by` integer,
-	`created_at` text DEFAULT '2026-03-31T17:45:31.412Z' NOT NULL,
-	`updated_at` text DEFAULT '2026-03-31T17:45:31.412Z' NOT NULL,
-	FOREIGN KEY (`employee_id`) REFERENCES `employees`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`salary_structure_id`) REFERENCES `salary_structures`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`processed_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
+    CREATE TABLE IF NOT EXISTS "payroll_records" (
+	"id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	"employee_id" integer NOT NULL,
+	"salary_structure_id" integer NOT NULL,
+	"payroll_month" text NOT NULL,
+	"working_days" real NOT NULL,
+	"present_days" real NOT NULL,
+	"absent_days" real DEFAULT 0,
+	"leave_days" real DEFAULT 0,
+	"half_days" real DEFAULT 0,
+	"overtime_hours" real DEFAULT 0,
+	"overtime_amount" real DEFAULT 0,
+	"basic_salary_earned" real NOT NULL,
+	"allowances_earned" real NOT NULL,
+	"deductions_applied" real NOT NULL,
+	"gross_salary_earned" real NOT NULL,
+	"net_salary_earned" real NOT NULL,
+	"bonus_amount" real DEFAULT 0,
+	"incentive_amount" real DEFAULT 0,
+	"advance_taken" real DEFAULT 0,
+	"loan_deduction" real DEFAULT 0,
+	"status" text DEFAULT 'draft',
+	"processed_date" text,
+	"paid_date" text,
+	"payment_method" text,
+	"bank_transaction_id" text,
+	"notes" text,
+	"processed_by" integer,
+	"created_at" text DEFAULT '2026-03-31T17:45:31.412Z' NOT NULL,
+	"updated_at" text DEFAULT '2026-03-31T17:45:31.412Z' NOT NULL,
+	FOREIGN KEY ("employee_id") REFERENCES "employees"("id") ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY ("salary_structure_id") REFERENCES "salary_structures"("id") ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY ("processed_by") REFERENCES "users"("id") ON UPDATE no action ON DELETE no action
 );
   `);
 
   // employee_advances
   db.exec(`
-    CREATE TABLE IF NOT EXISTS `employee_advances` (
-	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`employee_id` integer NOT NULL,
-	`advance_amount` real NOT NULL,
-	`reason` text NOT NULL,
-	`approved_amount` real,
-	`installments` integer DEFAULT 1,
-	`installment_amount` real,
-	`paid_installments` integer DEFAULT 0,
-	`remaining_amount` real,
-	`status` text DEFAULT 'pending',
-	`request_date` text DEFAULT '2026-03-31T17:45:31.413Z' NOT NULL,
-	`approved_date` text,
-	`approved_by` integer,
-	`notes` text,
-	`created_at` text DEFAULT '2026-03-31T17:45:31.413Z' NOT NULL,
-	`updated_at` text DEFAULT '2026-03-31T17:45:31.413Z' NOT NULL,
-	FOREIGN KEY (`employee_id`) REFERENCES `employees`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`approved_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
+    CREATE TABLE IF NOT EXISTS "employee_advances" (
+	"id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	"employee_id" integer NOT NULL,
+	"advance_amount" real NOT NULL,
+	"reason" text NOT NULL,
+	"approved_amount" real,
+	"installments" integer DEFAULT 1,
+	"installment_amount" real,
+	"paid_installments" integer DEFAULT 0,
+	"remaining_amount" real,
+	"status" text DEFAULT 'pending',
+	"request_date" text DEFAULT '2026-03-31T17:45:31.413Z' NOT NULL,
+	"approved_date" text,
+	"approved_by" integer,
+	"notes" text,
+	"created_at" text DEFAULT '2026-03-31T17:45:31.413Z' NOT NULL,
+	"updated_at" text DEFAULT '2026-03-31T17:45:31.413Z' NOT NULL,
+	FOREIGN KEY ("employee_id") REFERENCES "employees"("id") ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY ("approved_by") REFERENCES "users"("id") ON UPDATE no action ON DELETE no action
 );
   `);
 
   // payroll_settings
   db.exec(`
-    CREATE TABLE IF NOT EXISTS `payroll_settings` (
-	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`company_name` text NOT NULL,
-	`payroll_frequency` text DEFAULT 'monthly',
-	`standard_working_days` real DEFAULT 26,
-	`standard_working_hours` real DEFAULT 8,
-	`overtime_rate` real DEFAULT 1.5,
-	`pf_rate` real DEFAULT 12,
-	`esi_rate` real DEFAULT 3.25,
-	`professional_tax_slab` text,
-	`leave_policy` text,
-	`probation_period` integer DEFAULT 90,
-	`notice_period` integer DEFAULT 30,
-	`financial_year_start` text DEFAULT '04-01',
-	`is_active` integer DEFAULT true,
-	`updated_by` integer,
-	`updated_at` text DEFAULT '2026-03-31T17:45:31.413Z' NOT NULL,
-	FOREIGN KEY (`updated_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
+    CREATE TABLE IF NOT EXISTS "payroll_settings" (
+	"id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	"company_name" text NOT NULL,
+	"payroll_frequency" text DEFAULT 'monthly',
+	"standard_working_days" real DEFAULT 26,
+	"standard_working_hours" real DEFAULT 8,
+	"overtime_rate" real DEFAULT 1.5,
+	"pf_rate" real DEFAULT 12,
+	"esi_rate" real DEFAULT 3.25,
+	"professional_tax_slab" text,
+	"leave_policy" text,
+	"probation_period" integer DEFAULT 90,
+	"notice_period" integer DEFAULT 30,
+	"financial_year_start" text DEFAULT '04-01',
+	"is_active" integer DEFAULT true,
+	"updated_by" integer,
+	"updated_at" text DEFAULT '2026-03-31T17:45:31.413Z' NOT NULL,
+	FOREIGN KEY ("updated_by") REFERENCES "users"("id") ON UPDATE no action ON DELETE no action
 );
   `);
 
   // offers
   db.exec(`
-    CREATE TABLE IF NOT EXISTS `offers` (
-	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`name` text NOT NULL,
-	`description` text,
-	`type` text NOT NULL,
-	`trigger_type` text DEFAULT 'automatic',
-	`value` real NOT NULL,
-	`min_purchase` real DEFAULT 0,
-	`max_discount` real,
-	`valid_from` text NOT NULL,
-	`valid_to` text NOT NULL,
-	`applicable_products` text,
-	`max_usage` integer,
-	`current_usage` integer DEFAULT 0,
-	`active` integer DEFAULT true,
-	`created_at` text DEFAULT '2026-03-31T17:45:31.380Z' NOT NULL,
-	`updated_at` text DEFAULT '2026-03-31T17:45:31.380Z' NOT NULL
+    CREATE TABLE IF NOT EXISTS "offers" (
+	"id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	"name" text NOT NULL,
+	"description" text,
+	"type" text NOT NULL,
+	"trigger_type" text DEFAULT 'automatic',
+	"value" real NOT NULL,
+	"min_purchase" real DEFAULT 0,
+	"max_discount" real,
+	"valid_from" text NOT NULL,
+	"valid_to" text NOT NULL,
+	"applicable_products" text,
+	"max_usage" integer,
+	"current_usage" integer DEFAULT 0,
+	"active" integer DEFAULT true,
+	"created_at" text DEFAULT '2026-03-31T17:45:31.380Z' NOT NULL,
+	"updated_at" text DEFAULT '2026-03-31T17:45:31.380Z' NOT NULL
 );
   `);
 
   // offer_usage
   db.exec(`
-    CREATE TABLE IF NOT EXISTS `offer_usage` (
-	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`offer_id` integer NOT NULL,
-	`customer_id` integer,
-	`sale_id` integer,
-	`used_at` text DEFAULT '2026-03-31T17:45:31.380Z' NOT NULL,
-	FOREIGN KEY (`offer_id`) REFERENCES `offers`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`customer_id`) REFERENCES `customers`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`sale_id`) REFERENCES `sales`(`id`) ON UPDATE no action ON DELETE no action
+    CREATE TABLE IF NOT EXISTS "offer_usage" (
+	"id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	"offer_id" integer NOT NULL,
+	"customer_id" integer,
+	"sale_id" integer,
+	"used_at" text DEFAULT '2026-03-31T17:45:31.380Z' NOT NULL,
+	FOREIGN KEY ("offer_id") REFERENCES "offers"("id") ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY ("customer_id") REFERENCES "customers"("id") ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY ("sale_id") REFERENCES "sales"("id") ON UPDATE no action ON DELETE no action
 );
   `);
 
   // customer_loyalty
   db.exec(`
-    CREATE TABLE IF NOT EXISTS `customer_loyalty` (
-	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`customer_id` integer NOT NULL,
-	`total_points` real DEFAULT 0,
-	`used_points` real DEFAULT 0,
-	`available_points` real DEFAULT 0,
-	`tier` text DEFAULT 'Bronze',
-	`created_at` text DEFAULT '2026-03-31T17:45:31.380Z' NOT NULL,
-	`last_updated` text DEFAULT '2026-03-31T17:45:31.380Z' NOT NULL,
-	FOREIGN KEY (`customer_id`) REFERENCES `customers`(`id`) ON UPDATE no action ON DELETE no action
+    CREATE TABLE IF NOT EXISTS "customer_loyalty" (
+	"id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	"customer_id" integer NOT NULL,
+	"total_points" real DEFAULT 0,
+	"used_points" real DEFAULT 0,
+	"available_points" real DEFAULT 0,
+	"tier" text DEFAULT 'Bronze',
+	"created_at" text DEFAULT '2026-03-31T17:45:31.380Z' NOT NULL,
+	"last_updated" text DEFAULT '2026-03-31T17:45:31.380Z' NOT NULL,
+	FOREIGN KEY ("customer_id") REFERENCES "customers"("id") ON UPDATE no action ON DELETE no action
 );
   `);
 
