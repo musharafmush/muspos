@@ -667,16 +667,20 @@ export const selectCashRegisterTransactionSchema = createSelectSchema(cashRegist
 export const insertInventoryAdjustmentSchema = createInsertSchema(inventoryAdjustments).omit({ id: true, createdAt: true });
 export const selectInventoryAdjustmentSchema = createSelectSchema(inventoryAdjustments);
 export const insertOfferSchema = createInsertSchema(offers).omit({ id: true, createdAt: true, updatedAt: true });
+export const offerInsertSchema = insertOfferSchema; // Alias for compatibility
 export const selectOfferSchema = createSelectSchema(offers);
 export const insertOfferUsageSchema = createInsertSchema(offerUsage).omit({ id: true, usedAt: true });
 export const selectOfferUsageSchema = createSelectSchema(offerUsage);
 export const insertCustomerLoyaltySchema = createInsertSchema(customerLoyalty).omit({ id: true, createdAt: true, lastUpdated: true });
 export const selectCustomerLoyaltySchema = createSelectSchema(customerLoyalty);
 export const insertTaxCategorySchema = createInsertSchema(taxCategories).omit({ id: true, createdAt: true });
+export const taxCategoryInsertSchema = insertTaxCategorySchema; // Alias for compatibility
 export const selectTaxCategorySchema = createSelectSchema(taxCategories);
 export const insertTaxSettingsSchema = createInsertSchema(taxSettings).omit({ id: true, updatedAt: true });
+export const taxSettingsInsertSchema = insertTaxSettingsSchema; // Alias for compatibility
 export const selectTaxSettingsSchema = createSelectSchema(taxSettings);
 export const insertHsnCodeSchema = createInsertSchema(hsnCodes).omit({ id: true, createdAt: true });
+export const hsnCodeInsertSchema = insertHsnCodeSchema; // Alias for compatibility
 export const selectHsnCodeSchema = createSelectSchema(hsnCodes);
 
 // Types for the new tables
