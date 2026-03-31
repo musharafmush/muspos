@@ -673,7 +673,9 @@ export const insertOfferUsageSchema = createInsertSchema(offerUsage).omit({ id: 
 export const selectOfferUsageSchema = createSelectSchema(offerUsage);
 export const insertCustomerLoyaltySchema = createInsertSchema(customerLoyalty).omit({ id: true, createdAt: true, lastUpdated: true });
 export const selectCustomerLoyaltySchema = createSelectSchema(customerLoyalty);
-export const insertTaxCategorySchema = createInsertSchema(taxCategories).omit({ id: true, createdAt: true });
+export const insertTaxCategorySchema = createInsertSchema(taxCategories, { 
+  rate: z.coerce.number() 
+}).omit({ id: true, createdAt: true });
 export const taxCategoryInsertSchema = insertTaxCategorySchema; // Alias for compatibility
 export const selectTaxCategorySchema = createSelectSchema(taxCategories);
 export const insertTaxSettingsSchema = createInsertSchema(taxSettings).omit({ id: true, updatedAt: true });
