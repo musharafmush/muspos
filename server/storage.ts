@@ -353,12 +353,6 @@ export const storage = {
     }
   },
 
-  async getProductByBarcode(barcode: string): Promise<Product | null> {
-    return await db.query.products.findFirst({
-      where: eq(products.barcode, barcode),
-      with: { category: true }
-    });
-  },
 
   async createProduct(product: any): Promise<Product> {
     try {
