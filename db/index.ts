@@ -12,7 +12,9 @@ const dbPath = path.join(__dirname, '..', 'pos-data.db');
 console.log('Diagnostic: SQLite DB Path:', dbPath);
 const sqlite = new Database(dbPath);
 console.log('🚩 Checkpoint 0: Database constructor finished');
-sqlite.pragma('foreign_keys = ON');
+// sqlite.pragma('foreign_keys = ON');
+console.log('🚩 Checkpoint 0.1: Pragma skipped (testing for crash)');
 
 export const db = drizzle(sqlite, { schema });
+console.log('🚩 Checkpoint 0.2: Drizzle initialized');
 export { sqlite };
