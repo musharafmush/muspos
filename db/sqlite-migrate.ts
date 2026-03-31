@@ -324,6 +324,7 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
       free_qty REAL DEFAULT 0,
       cost REAL,
       selling_price REAL,
+      wholesale_price REAL,
       mrp REAL,
       hsn_code TEXT,
       tax_percentage REAL,
@@ -339,6 +340,7 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
       cash_amount REAL,
       location TEXT,
       unit TEXT,
+      remaining_quantity REAL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE CASCADE,
       FOREIGN KEY (product_id) REFERENCES products(id)
@@ -1112,6 +1114,17 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
       if (!columns.includes('payment_status')) {
         console.log('🔄 Adding payment_status to purchases...');
         db.exec("ALTER TABLE purchases ADD COLUMN payment_status TEXT NOT NULL DEFAULT 'unpaid'");
+      }
+    }
+
+    if (table === 'purchase_items' && columns.length > 0) {
+      if (!columns.includes('wholesale_price')) {
+        console.log('🔄 Adding wholesale_price to purchase_items...');
+        db.exec('ALTER TABLE purchase_items ADD COLUMN wholesale_price REAL');
+      }
+      if (!columns.includes('remaining_quantity')) {
+        console.log('🔄 Adding remaining_quantity to purchase_items...');
+        db.exec('ALTER TABLE purchase_items ADD COLUMN remaining_quantity REAL');
       }
     }
     
