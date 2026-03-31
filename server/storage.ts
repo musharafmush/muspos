@@ -1899,6 +1899,12 @@ export const storage = {
             SELECT product_id, received_qty, free_qty FROM purchase_items WHERE purchase_id = ?
           `).all(id);
 
+          // Get old purchase total and supplier for balance reconciliation
+          const oldPurchase = sqlite.prepare('SELECT supplier_id, total, amount_paid FROM purchases WHERE id = ?').get(id) as any;
+          const oldSupplierId = oldPurchase ? oldPurchase.supplier_id : data.supplierId;
+          const oldTotal = oldPurchase ? parseFloat(oldPurchase.total || '0') : 0;
+          const newTotal = data.items?.reduce((total: number, item: any) => total + ((item.receivedQty || 0) * (item.unitCost || 0)), 0) || 0;
+
           // Create a map of existing received and free quantities
           const existingReceivedMap = new Map();
           const existingFreeMap = new Map();
@@ -1940,7 +1946,7 @@ export const storage = {
             data.orderDate,
             data.expectedDate || data.orderDate,
             data.expectedDate || data.orderDate,
-            data.items?.reduce((total: number, item: any) => total + ((item.receivedQty || 0) * (item.unitCost || 0)), 0) || 0,
+            newTotal,
             data.status || 'Pending',
             data.paymentMethod || 'Credit',
             data.paymentMethod || 'Credit',
@@ -1956,6 +1962,22 @@ export const storage = {
             data.remarks || '',
             id
           );
+
+          // Reconcile supplier balance
+          if (oldSupplierId === data.supplierId) {
+            // Same supplier, just adjust difference in total
+            const totalDifference = newTotal - oldTotal;
+            if (totalDifference !== 0) {
+              sqlite.prepare('UPDATE suppliers SET outstanding_balance = COALESCE(outstanding_balance, 0) + ? WHERE id = ?')
+                .run(totalDifference.toString(), data.supplierId);
+            }
+          } else {
+            // Supplier changed! Subtract entirely from old, add entirely to new
+            sqlite.prepare('UPDATE suppliers SET outstanding_balance = COALESCE(outstanding_balance, 0) - ? WHERE id = ?')
+              .run(oldTotal.toString(), oldSupplierId);
+            sqlite.prepare('UPDATE suppliers SET outstanding_balance = COALESCE(outstanding_balance, 0) + ? WHERE id = ?')
+              .run(newTotal.toString(), data.supplierId);
+          }
 
           // Delete existing items
           sqlite.prepare('DELETE FROM purchase_items WHERE purchase_id = ?').run(id);
