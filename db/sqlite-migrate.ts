@@ -1066,7 +1066,7 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
   `);
 
   // Ensure table columns exist (Alter Table if necessary)
-  const migrationTables = ['customers', 'sales', 'cash_registers', 'suppliers', 'purchases', 'hsn_codes'];
+  const migrationTables = ['customers', 'sales', 'cash_registers', 'suppliers', 'purchases', 'hsn_codes', 'purchase_items'];
   for (const table of migrationTables) {
     const columns = db.prepare(`PRAGMA table_info(${table})`).all().map(col => (col as any).name);
     
