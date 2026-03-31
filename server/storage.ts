@@ -2015,8 +2015,6 @@ export const storage = {
               );
 
               // Calculate stock difference including free quantity
-              const newReceivedQty = item.receivedQty || 0;
-              const newFreeQty = item.freeQty || 0;
               const oldReceivedQty = existingReceivedMap.get(item.productId) || 0;
               const oldFreeQty = existingFreeMap.get(item.productId) || 0;
 
