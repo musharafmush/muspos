@@ -775,16 +775,19 @@ export default function SalesDashboard() {
   const handleUpdateCustomerBilling = async (customerId: number, customerData: any) => {
     try {
       const response = await fetch(`/api/customers/${customerId}`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ...customerData,
-          totalBilled: parseFloat(customerData.totalBilled || '0'),
-          orderCount: parseInt(customerData.orderCount || '0'),
-          averageOrderValue: parseFloat(customerData.averageOrderValue || '0'),
-          creditLimit: parseFloat(customerData.creditLimit || '0')
+          name: customerData.customerName,
+          phone: customerData.phone,
+          email: customerData.email,
+          address: customerData.address,
+          creditLimit: parseFloat(customerData.creditLimit || '0'),
+          // The database doesn't actually store these, but it won't break anything.
+          businessName: customerData.businessName || null,
+          taxId: customerData.taxId || null,
         }),
       });
 
