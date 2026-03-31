@@ -671,7 +671,7 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
   }
 
   // Ensure table columns exist (Alter Table if necessary)
-  const migrationTables = ['customers', 'sales', 'cash_registers'];
+  const migrationTables = ['customers', 'sales', 'cash_registers', 'suppliers'];
   for (const table of migrationTables) {
     const columns = db.prepare(`PRAGMA table_info(${table})`).all().map(col => (col as any).name);
     
@@ -698,6 +698,17 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
     if (table === 'cash_registers' && columns.length > 0 && !columns.includes('total_credit_sales')) {
       console.log('🔄 Adding total_credit_sales to cash_registers...');
       db.exec('ALTER TABLE cash_registers ADD COLUMN total_credit_sales REAL DEFAULT 0');
+    }
+    
+    if (table === 'suppliers' && columns.length > 0) {
+      if (!columns.includes('credit_limit')) {
+        console.log('🔄 Adding credit_limit to suppliers...');
+        db.exec('ALTER TABLE suppliers ADD COLUMN credit_limit REAL DEFAULT 0');
+      }
+      if (!columns.includes('outstanding_balance')) {
+        console.log('🔄 Adding outstanding_balance to suppliers...');
+        db.exec('ALTER TABLE suppliers ADD COLUMN outstanding_balance REAL DEFAULT 0');
+      }
     }
   }
 
