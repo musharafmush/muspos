@@ -1973,23 +1973,28 @@ export const storage = {
             const insertItem = sqlite.prepare(`
               INSERT INTO purchase_items (
                 purchase_id, product_id, quantity, received_qty, free_qty, unit_cost, cost,
-                selling_price, mrp, hsn_code, tax_percentage, discount_amount, discount_percent,
+                selling_price, wholesale_price, mrp, hsn_code, tax_percentage, discount_amount, discount_percent,
                 expiry_date, batch_number, net_cost, roi_percent, gross_profit_percent,
-                net_amount, cash_percent, cash_amount, location, unit, subtotal
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                net_amount, cash_percent, cash_amount, location, unit, subtotal, remaining_quantity
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `);
 
             for (const item of data.items) {
+              // Calculate remaining quantity
+              const newReceivedQty = item.receivedQty || 0;
+              const newFreeQty = item.freeQty || 0;
+              
               // Insert updated item
               insertItem.run(
                 id,
                 item.productId,
                 item.quantity || 0,
-                item.receivedQty || 0,
-                item.freeQty || 0,
+                newReceivedQty,
+                newFreeQty,
                 item.unitCost || 0,
                 item.cost || item.unitCost || 0,
                 item.sellingPrice || 0,
+                item.wholesalePrice || 0,
                 item.mrp || 0,
                 item.hsnCode || "",
                 item.taxPercentage || 0,
@@ -2005,7 +2010,8 @@ export const storage = {
                 item.cashAmount || 0,
                 item.location || "",
                 item.unit || "PCS",
-                (item.receivedQty || 0) * (item.unitCost || 0)
+                newReceivedQty * (item.unitCost || 0),
+                newReceivedQty + newFreeQty
               );
 
               // Calculate stock difference including free quantity
