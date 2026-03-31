@@ -1,11 +1,5 @@
 node_modules
 dist
-.DS_Store
-server/public
-vite.config.ts.*
-*.tar.gz
+.env
 pos-data.db*
-*.db
-*.db-journal
-*.db-shm
-*.db-wal
+server-debug.log

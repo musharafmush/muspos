@@ -2,6 +2,7 @@ console.log('🚩 Checkpoint R0: routes.ts starting execution');
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage.js";
+console.log('🚩 Checkpoint R1: storage imported into routes.ts');
 import { z } from "zod";
 import * as schema from "../shared/schema.js";
 import { randomUUID } from "crypto";
