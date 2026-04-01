@@ -351,6 +351,7 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
   db.exec(`
     CREATE TABLE IF NOT EXISTS returns (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      return_number TEXT UNIQUE,
       sale_id INTEGER NOT NULL,
       user_id INTEGER NOT NULL,
       refund_method TEXT NOT NULL,

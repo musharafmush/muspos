@@ -2568,10 +2568,11 @@ export const storage = {
       try {
         const tableInfo = sqlite.prepare("PRAGMA table_info(returns)").all() as any[];
         if (tableInfo.length > 0 && !tableInfo.some(c => c.name === 'return_number')) {
-          console.log("Old returns schema detected, archiving old tables to allow fresh schema recreation...");
-          const timestamp = Date.now();
-          sqlite.exec(`ALTER TABLE return_items RENAME TO return_items_old_${timestamp}`);
-          sqlite.exec(`ALTER TABLE returns RENAME TO returns_old_${timestamp}`);
+          console.log("Old returns schema detected, safely injecting missing return_number column...");
+          sqlite.exec(`ALTER TABLE returns ADD COLUMN return_number TEXT UNIQUE`);
+          
+          // Generate pseudo-return identifiers for existing orphaned returns
+          sqlite.exec(`UPDATE returns SET return_number = 'MIG-' || id || '-' || abs(random() % 1000) WHERE return_number IS NULL`);
         }
       } catch (e) {
         console.warn("Schema check warning:", e);
