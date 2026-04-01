@@ -2800,6 +2800,9 @@ export const storage = {
           c.phone as phone,
           c.email as email,
           c.address as address,
+          c.credit_limit as credit_limit,
+          c.business_name as business_name,
+          c.tax_id as tax_id,
           COALESCE(SUM(CAST(s.total AS REAL)), 0) as total_billed,
           COUNT(s.id) as order_count,
           COALESCE(AVG(CAST(s.total AS REAL)), 0) as average_order_value,
@@ -2811,7 +2814,7 @@ export const storage = {
         FROM customers c
         LEFT JOIN sales s ON c.id = s.customer_id
         WHERE s.created_at >= ? OR s.created_at IS NULL
-        GROUP BY c.id, c.name, c.phone, c.email, c.address
+        GROUP BY c.id, c.name, c.phone, c.email, c.address, c.credit_limit, c.business_name, c.tax_id
         ORDER BY total_billed DESC
       `);
 
@@ -2823,6 +2826,9 @@ export const storage = {
         phone: row.phone,
         email: row.email,
         address: row.address,
+        creditLimit: row.credit_limit,
+        businessName: row.business_name,
+        taxId: row.tax_id,
         totalBilled: row.total_billed.toString(),
         orderCount: row.order_count,
         averageOrderValue: row.average_order_value.toString(),
