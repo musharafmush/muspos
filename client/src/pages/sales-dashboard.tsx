@@ -3185,7 +3185,7 @@ export default function SalesDashboard() {
 
       {/* View Customer Billing Dialog */}
       <Dialog open={isViewCustomerBillingDialogOpen} onOpenChange={setIsViewCustomerBillingDialogOpen}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Customer Billing Details</DialogTitle>
           </DialogHeader>
