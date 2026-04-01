@@ -1099,6 +1099,21 @@ export const storage = {
 
   async listSuppliers(): Promise<Supplier[]> {
     try {
+      const { sqlite } = await import('../db/index.js');
+      
+      // Auto-recalculate outstanding balances from purchases
+      // This guarantees the balance is always 100% accurate despite missed payment events
+      sqlite.prepare(`
+        UPDATE suppliers 
+        SET outstanding_balance = COALESCE((
+          SELECT SUM(COALESCE(CAST(total AS REAL), 0) - COALESCE(CAST(amount_paid AS REAL), 0))
+          FROM purchases p 
+          WHERE p.supplier_id = suppliers.id 
+          AND (p.status IS NULL OR p.status != 'cancelled') 
+          AND (p.payment_status IS NULL OR p.payment_status != 'paid')
+        ), 0)
+      `).run();
+
       return await db.query.suppliers.findMany({
         orderBy: suppliers.name
       });
