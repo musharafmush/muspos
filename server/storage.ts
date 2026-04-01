@@ -2564,6 +2564,19 @@ export const storage = {
     try {
       const { sqlite } = await import('../db/index.js');
 
+      // Check if returns table exists and verify its schema
+      try {
+        const tableInfo = sqlite.prepare("PRAGMA table_info(returns)").all() as any[];
+        if (tableInfo.length > 0 && !tableInfo.some(c => c.name === 'return_number')) {
+          console.log("Old returns schema detected, archiving old tables to allow fresh schema recreation...");
+          const timestamp = Date.now();
+          sqlite.exec(`ALTER TABLE return_items RENAME TO return_items_old_${timestamp}`);
+          sqlite.exec(`ALTER TABLE returns RENAME TO returns_old_${timestamp}`);
+        }
+      } catch (e) {
+        console.warn("Schema check warning:", e);
+      }
+
       // Ensure returns table exists with return_number column
       sqlite.exec(`
         CREATE TABLE IF NOT EXISTS returns (
