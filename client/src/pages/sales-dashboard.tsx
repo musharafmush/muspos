@@ -3504,7 +3504,8 @@ export default function SalesDashboard() {
                       value={customerBillingForm.totalBilled}
                       onChange={(e) => setCustomerBillingForm({ ...customerBillingForm, totalBilled: e.target.value })}
                       placeholder="0.00"
-                      className="h-10 pl-8 bg-white border-gray-300 focus:border-green-500 focus:ring-green-500"
+                      disabled
+                      className="h-10 pl-8 bg-gray-100 border-gray-300 cursor-not-allowed text-gray-600 font-semibold"
                     />
                   </div>
                 </div>
@@ -3519,7 +3520,8 @@ export default function SalesDashboard() {
                     value={customerBillingForm.orderCount}
                     onChange={(e) => setCustomerBillingForm({ ...customerBillingForm, orderCount: e.target.value })}
                     placeholder="0"
-                    className="h-10 bg-white border-gray-300 focus:border-green-500 focus:ring-green-500"
+                    disabled
+                    className="h-10 bg-gray-100 border-gray-300 cursor-not-allowed text-gray-600 font-semibold"
                   />
                 </div>
 
@@ -3535,7 +3537,8 @@ export default function SalesDashboard() {
                       value={customerBillingForm.averageOrderValue}
                       onChange={(e) => setCustomerBillingForm({ ...customerBillingForm, averageOrderValue: e.target.value })}
                       placeholder="0.00"
-                      className="h-10 pl-8 bg-white border-gray-300 focus:border-green-500 focus:ring-green-500"
+                      disabled
+                      className="h-10 pl-8 bg-gray-100 border-gray-300 cursor-not-allowed text-gray-600 font-semibold"
                     />
                   </div>
                 </div>
