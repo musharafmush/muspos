@@ -6602,6 +6602,7 @@ export const storage = {
       'attendance', 'leave_applications', 'payroll_records', 'employee_advances',
       'salary_structures', 'employees', 'payroll_settings',
       'print_jobs', 'label_templates', 'label_printers', 'settings',
+      'return_items', 'returns',
       'users'
     ];
 
