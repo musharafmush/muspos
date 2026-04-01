@@ -6605,7 +6605,7 @@ export const storage = {
       'users'
     ];
 
-    sqliteInstance.execute('PRAGMA foreign_keys = OFF');
+    sqliteInstance.exec('PRAGMA foreign_keys = OFF');
     for (const table of tableNames) {
       try {
         sqliteInstance.prepare(`DELETE FROM ${table}`).run();
@@ -6614,7 +6614,7 @@ export const storage = {
         console.warn(`Could not clear table ${table}:`, e.message);
       }
     }
-    sqliteInstance.execute('PRAGMA foreign_keys = ON');
+    sqliteInstance.exec('PRAGMA foreign_keys = ON');
 
     // Re-seed default admin after clear to ensure system remains usable
     const existingAdmin = sqliteInstance.prepare('SELECT id FROM users WHERE username = ?').get('admin');
@@ -6633,7 +6633,7 @@ export const storage = {
     // Clear existing data
     await this.clearAllData();
 
-    sqliteInstance.execute('PRAGMA foreign_keys = OFF');
+    sqliteInstance.exec('PRAGMA foreign_keys = OFF');
     
     try {
       for (const [table, rows] of Object.entries(backupData.data)) {
@@ -6649,7 +6649,7 @@ export const storage = {
         }
       }
     } finally {
-      sqliteInstance.execute('PRAGMA foreign_keys = ON');
+      sqliteInstance.exec('PRAGMA foreign_keys = ON');
     }
   }
 
