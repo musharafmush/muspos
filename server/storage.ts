@@ -1377,7 +1377,7 @@ export const storage = {
         } as Sale;
       });
 
-      return result as Sale;
+      return result() as Sale;
     } catch (error) {
       console.error('Error creating sale:', error);
       throw error;
@@ -2659,7 +2659,7 @@ export const storage = {
         };
       });
 
-      return result;
+      return result();
     } catch (error) {
       console.error('Error creating return:', error);
       throw error;
