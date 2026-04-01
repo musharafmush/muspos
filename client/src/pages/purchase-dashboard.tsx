@@ -246,6 +246,7 @@ export default function PurchaseDashboard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/purchases"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/suppliers"] });
       toast({
         title: "Success",
         description: "Purchase order deleted successfully",
@@ -303,6 +304,7 @@ export default function PurchaseDashboard() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/purchases"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/suppliers"] });
 
       const successMessage = data.message || `Purchase order status updated to ${newStatus}`;
 
@@ -361,6 +363,7 @@ export default function PurchaseDashboard() {
 
       // Invalidate and refetch purchase data immediately
       await queryClient.invalidateQueries({ queryKey: ["/api/purchases"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/suppliers"] });
 
       // Enhanced success message based on completion status
       let successTitle = "Payment Recorded";
@@ -755,7 +758,10 @@ export default function PurchaseDashboard() {
             <p className="text-gray-600">Failed to load purchase data. Please try again.</p>
             <div className="mt-4 space-x-2">
               <Button
-                onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/purchases"] })}
+                onClick={() => {
+                  queryClient.invalidateQueries({ queryKey: ["/api/purchases"] });
+                  queryClient.invalidateQueries({ queryKey: ["/api/suppliers"] });
+                }}
                 variant="outline"
               >
                 <RefreshCw className="w-4 h-4 mr-2" />

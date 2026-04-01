@@ -1867,6 +1867,7 @@ export default function PurchaseEntryProfessional() {
       // Invalidate both purchases and products queries to refresh stock data
       queryClient.invalidateQueries({ queryKey: ["/api/purchases"] });
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/suppliers"] });
 
       if (!isEditMode) {
         // Reset form only for new purchases
