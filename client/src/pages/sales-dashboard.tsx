@@ -719,13 +719,16 @@ export default function SalesDashboard() {
 
   const sales = filteredAndSortedSales;
 
-  // Calculate metrics with better error handling
+  // Calculate metrics with better error handling - Subtract returns
   const totalSalesAmount = sales.reduce((total: number, sale: any) => {
+    if (sale.status === 'cancelled') return total;
     const saleTotal = parseFloat(sale.total || sale.totalAmount || sale.amount || 0);
+    // Exclude completely returned ones from revenue if status is 'returned'
+    if (sale.status === 'returned') return total; 
     return total + (isNaN(saleTotal) ? 0 : saleTotal);
   }, 0) || 0;
 
-  const totalTransactions = sales.length || 0;
+  const totalTransactions = sales.filter((s: any) => s.status !== 'cancelled').length || 0;
   const averageOrderValue = totalTransactions > 0 ? totalSalesAmount / totalTransactions : 0;
 
   // Mock data for additional metrics
@@ -2567,13 +2570,15 @@ export default function SalesDashboard() {
                                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
                                   (sale.status || "completed") === 'completed' 
                                     ? 'bg-green-100 text-green-800' :
+                                  (sale.status || "completed") === 'returned' 
+                                    ? 'bg-orange-100 text-orange-800' :
                                   (sale.status || "completed") === 'pending' 
                                     ? 'bg-yellow-100 text-yellow-800' :
                                   (sale.status || "completed") === 'cancelled' 
                                     ? 'bg-red-100 text-red-800' :
                                   'bg-green-100 text-green-800'
                                 }`}>
-                                  {sale.status || "Completed"}
+                                  {sale.status === 'returned' ? 'Returned' : (sale.status || "Completed")}
                                 </span>
                               </TableCell>
                               

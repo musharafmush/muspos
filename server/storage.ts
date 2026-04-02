@@ -2662,6 +2662,10 @@ export const storage = {
           console.log(`📦 Restored stock for return - Product ${item.productId}: +${item.quantity}`);
         }
 
+        // Update original sale status
+        sqlite.prepare('UPDATE sales SET status = ? WHERE id = ?').run('returned', returnData.saleId);
+        console.log(`✅ Updated original sale ${returnData.saleId} status to 'returned'`);
+
         // Get the created return
         const getReturn = sqlite.prepare('SELECT * FROM returns WHERE id = ?');
         const newReturn = getReturn.get(returnId);

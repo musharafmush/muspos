@@ -136,12 +136,13 @@ export default function SaleReturn() {
         const productId = item.productId || item.product?.id || 0;
         const productName = item.product?.name || `Product #${productId}`;
         const quantity = parseInt(item.quantity?.toString() || '1');
+        const returnedQty = parseInt(item.returned_quantity?.toString() || '0');
         const unitPrice = parseFloat(item.unitPrice?.toString() || item.product?.price?.toString() || '0');
         
         return {
           productId,
           productName,
-          maxQuantity: quantity,
+          maxQuantity: Math.max(0, quantity - returnedQty),
           returnQuantity: 0,
           unitPrice,
           subtotal: 0,

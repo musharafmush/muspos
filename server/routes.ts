@@ -2334,11 +2334,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           c.name as customerName,
           c.phone as customerPhone,
           u.name as userName,
-          COUNT(si.id) as itemCount
+          COUNT(si.id) as itemCount,
+          GROUP_CONCAT(p.name || ' (x' || si.quantity || ')', ', ') as itemsSummary
         FROM sales s
         LEFT JOIN customers c ON s.customer_id = c.id
         LEFT JOIN users u ON s.user_id = u.id
         LEFT JOIN sale_items si ON s.id = si.sale_id
+        LEFT JOIN products p ON si.product_id = p.id
         GROUP BY s.id, s.order_number, s.customer_id, s.user_id, s.total, s.tax, s.discount, 
                  s.payment_method, s.status, s.created_at, c.name, c.phone, u.name
         ORDER BY s.created_at DESC
@@ -2367,7 +2369,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdAt: sale.createdAt,
         itemCount: sale.itemCount || 0,
         source: 'POS Enhanced',
-        items: sale.itemCount > 0 ? [{ productName: `${sale.itemCount} items`, quantity: sale.itemCount }] : []
+        itemsSummary: sale.itemsSummary,
+        items: sale.itemsSummary ? sale.itemsSummary.split(', ').map((item: string) => ({ productName: item, quantity: 1 })) : []
       }));
 
       console.log('📊 Returning formatted sales data:', formattedSales.length);
@@ -2418,7 +2421,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           si.*,
           p.name as product_name,
           p.sku as product_sku,
-          p.price as product_price
+          p.price as product_price,
+          (
+            SELECT COALESCE(SUM(ri.quantity), 0)
+            FROM return_items ri
+            JOIN returns r ON ri.return_id = r.id
+            WHERE r.sale_id = si.sale_id AND ri.product_id = si.product_id
+          ) as returned_quantity
         FROM sale_items si
         LEFT JOIN products p ON si.product_id = p.id
         WHERE si.sale_id = ?
