@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/currency';
-import { Search, ArrowLeft, RefreshCw, DollarSign, CreditCard, Banknote, ShoppingCart, Package, AlertCircle, CheckCircle, Wifi, WifiOff, Clock, Check } from 'lucide-react';
+import { Search, ArrowLeft, RefreshCw, DollarSign, CreditCard, Banknote, ShoppingCart, Package, AlertCircle, CheckCircle, Wifi, WifiOff, Clock, Check, Scan } from 'lucide-react';
 
 interface SaleItem {
   id: number;
@@ -346,16 +346,30 @@ export default function SaleReturn() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   id="search"
-                  placeholder="Enter order number, customer name, or phone..."
+                  placeholder="Scan receipt barcode or enter order number..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && sales.length === 1) {
+                      handleSaleSelect(sales[0]);
+                      toast({
+                        title: "🔍 Barcode Scanned",
+                        description: `Automatically selected Sale #${sales[0].orderNumber}`,
+                      });
+                    }
+                  }}
+                  className="pl-10 pr-12 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 bg-white"
                 />
-                {salesLoading && searchTerm.length >= 3 && (
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
+                  {salesLoading && searchTerm.length >= 2 ? (
                     <RefreshCw className="h-4 w-4 animate-spin text-blue-500" />
-                  </div>
-                )}
+                  ) : (
+                    <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-100 rounded text-[10px] font-bold text-gray-500 border border-gray-200 uppercase tracking-tight">
+                      <Scan className="h-3 w-3" />
+                      Ready
+                    </div>
+                  )}
+                </div>
               </div>
               {searchTerm.length > 0 && searchTerm.length < 2 && (
                 <p className="text-xs text-gray-500">Type at least 2 characters for instant search</p>
