@@ -91,23 +91,55 @@ console.log('🚩 Checkpoint 3: Entering async block');
 
     // ALWAYS serve the app on port 5004
     const port = Number(process.env.PORT) || 5004;
-    server.listen(port, "0.0.0.0", () => {
-      log(`serving on port ${port}`);
-    });
+
+    const startServer = () => {
+      server.listen(port, "0.0.0.0", () => {
+        log(`serving on port ${port}`);
+      });
+    };
 
     // Handle server errors with better recovery
-    server.on('error', (error: any) => {
+    server.on('error', async (error: any) => {
       console.error('❌ Server error:', error);
 
-      // Don't crash on EADDRINUSE - just log it
+      // Robust EADDRINUSE handling
       if (error.code === 'EADDRINUSE') {
-        console.log(`⚠️ Port ${port} is already in use, trying to kill existing process...`);
+        console.warn(`⚠️ Port ${port} is already in use.`);
+        console.log(`📡 Attempting to clear port ${port} and restart...`);
+
+        try {
+          const { execSync } = await import('child_process');
+          if (process.platform === 'linux') {
+            console.log('🐧 Linux detected, using fuser -k...');
+            execSync(`fuser -k ${port}/tcp`, { stdio: 'inherit' });
+          } else if (process.platform === 'win32') {
+            console.log('🪟 Windows detected, using taskkill...');
+            try {
+              const output = execSync(`netstat -ano | findstr :${port}`).toString();
+              const pid = output.split(/\s+/).filter(Boolean).pop();
+              if (pid && !isNaN(Number(pid))) {
+                execSync(`taskkill /F /PID ${pid}`, { stdio: 'inherit' });
+              }
+            } catch (netstatError) {
+              console.log('💡 No existing process found to kill via netstat.');
+            }
+          }
+
+          console.log('🔄 Port cleared. Restarting server in 2 seconds...');
+          setTimeout(startServer, 2000);
+        } catch (killError) {
+          console.error('❌ Failed to automatically kill process:', (killError as Error).message);
+          console.log(`💡 Manual fix: ${process.platform === 'linux' ? `sudo fuser -k ${port}/tcp` : `npx kill-port ${port}`}`);
+          process.exit(1);
+        }
         return;
       }
 
-      // For other errors, log but don't exit
-      console.error('Server will continue running despite error');
+      // For other errors, log but don't necessarily exit
+      console.error('Server encountered an error, but will attempt to stay alive if possible.');
     });
+
+    startServer();
 
   } catch (error) {
     console.error('❌ Failed to start server:', error);
