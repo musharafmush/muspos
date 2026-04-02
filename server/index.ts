@@ -91,51 +91,76 @@ console.log('🚩 Checkpoint 3: Entering async block');
 
     // ALWAYS serve the app on port 5004
     const port = Number(process.env.PORT) || 5004;
+    let retryCount = 0;
+    const maxRetries = 5;
 
     const startServer = () => {
+      console.log(`🚀 [PID:${process.pid}] Attempting to start server on port ${port}... (Attempt ${retryCount + 1})`);
       server.listen(port, "0.0.0.0", () => {
         log(`serving on port ${port}`);
+        retryCount = 0; // Reset on success
       });
     };
 
     // Handle server errors with better recovery
     server.on('error', async (error: any) => {
-      console.error('❌ Server error:', error);
+      console.error(`❌ [PID:${process.pid}] Server error:`, error);
 
       // Robust EADDRINUSE handling
       if (error.code === 'EADDRINUSE') {
-        console.warn(`⚠️ Port ${port} is already in use.`);
-        console.log(`📡 Attempting to clear port ${port} and restart...`);
-
+        if (retryCount >= maxRetries) {
+           console.error(`🛑 [PID:${process.pid}] Failed to bind to port ${port} after ${maxRetries} attempts. Giving up.`);
+           process.exit(1);
+        }
+        
+        retryCount++;
+        console.warn(`⚠️ [PID:${process.pid}] Port ${port} is currently taken.`);
+        
         try {
           const { execSync } = await import('child_process');
           if (process.platform === 'linux') {
-            console.log('🐧 Linux detected, using fuser -k...');
-            execSync(`fuser -k ${port}/tcp`, { stdio: 'inherit' });
+            console.log(`🔍 [PID:${process.pid}] Linux: Checking what is using port ${port}...`);
+            try {
+              const info = execSync(`lsof -i :${port} -sTCP:LISTEN -t`).toString().trim();
+              if (info) {
+                console.log(`🗡️ [PID:${process.pid}] Found process(es) ${info} on port ${port}. Sending SIGKILL...`);
+                execSync(`kill -9 ${info}`, { stdio: 'inherit' });
+              } else {
+                console.log(`❓ [PID:${process.pid}] Port ${port} seems busy but lsof found no PID. Trying fuser...`);
+                execSync(`fuser -k ${port}/tcp`, { stdio: 'inherit' });
+              }
+            } catch (e) {
+              console.log(`⚠️ [PID:${process.pid}] lsof/fuser check failed or no process found. Using fuser -k as fallback...`);
+              try { execSync(`fuser -k ${port}/tcp`, { stdio: 'inherit' }); } catch(f) {}
+            }
           } else if (process.platform === 'win32') {
-            console.log('🪟 Windows detected, using taskkill...');
+            console.log(`🔍 [PID:${process.pid}] Windows: Clearing port ${port}...`);
             try {
               const output = execSync(`netstat -ano | findstr :${port}`).toString();
-              const pid = output.split(/\s+/).filter(Boolean).pop();
-              if (pid && !isNaN(Number(pid))) {
-                execSync(`taskkill /F /PID ${pid}`, { stdio: 'inherit' });
+              const pids = output.split('\n').map(l => l.trim().split(/\s+/).pop()).filter(p => p && !isNaN(Number(p)));
+              const uniquePids = [...new Set(pids)];
+              for (const pid of uniquePids) {
+                if (pid && pid !== process.pid.toString()) {
+                  console.log(`🗡️ Killing PID: ${pid}`);
+                  execSync(`taskkill /F /PID ${pid}`, { stdio: 'inherit' });
+                }
               }
             } catch (netstatError) {
               console.log('💡 No existing process found to kill via netstat.');
             }
           }
 
-          console.log('🔄 Port cleared. Restarting server in 2 seconds...');
-          setTimeout(startServer, 2000);
+          const delay = 3000 * retryCount;
+          console.log(`🔄 [PID:${process.pid}] Waiting ${delay/1000}s for port to release before retry...`);
+          setTimeout(startServer, delay);
         } catch (killError) {
-          console.error('❌ Failed to automatically kill process:', (killError as Error).message);
-          console.log(`💡 Manual fix: ${process.platform === 'linux' ? `sudo fuser -k ${port}/tcp` : `npx kill-port ${port}`}`);
+          console.error(`❌ [PID:${process.pid}] Failed to automatically clear port:`, (killError as Error).message);
+          console.log(`💡 Manual fix: run 'sudo fuser -k ${port}/tcp'`);
           process.exit(1);
         }
         return;
       }
 
-      // For other errors, log but don't necessarily exit
       console.error('Server encountered an error, but will attempt to stay alive if possible.');
     });
 
