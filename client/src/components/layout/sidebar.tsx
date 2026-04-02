@@ -461,21 +461,6 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             </nav>
           </div>
 
-          {currentUser?.role === 'super_admin' && (
-            <div className="p-4 border-t border-blue-600/50 bg-white/5">
-              <Link 
-                href="/super-admin" 
-                onClick={() => onClose()} 
-                className={cn(
-                  "flex items-center text-blue-100 hover:text-white transition-colors group",
-                  location === "/super-admin" && "text-white"
-                )}
-              >
-                <DatabaseIcon2 className="h-5 w-5 mr-3 group-hover:scale-110 transition-transform" />
-                {open && <span className="font-bold text-xs uppercase tracking-widest">SaaS Master Panel</span>}
-              </Link>
-            </div>
-          )}
 
           <div className="p-4 mt-auto border-t border-blue-600">
             <div className="flex items-center">

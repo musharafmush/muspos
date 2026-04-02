@@ -31,6 +31,10 @@ export default function SuperAdmin() {
     queryKey: ["/api/tenants"],
   });
 
+  const { data: stats } = useQuery({
+    queryKey: ["/api/saas/stats"],
+  });
+
   const createTenantMutation = useMutation({
     mutationFn: async (data: typeof newTenant) => {
       const res = await apiRequest("POST", "/api/tenants", data);
@@ -133,12 +137,12 @@ export default function SuperAdmin() {
 
           <Card className="bg-purple-50 dark:bg-purple-900/10 border-purple-200 dark:border-purple-800">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-purple-600 dark:text-purple-400">Registered Users</CardTitle>
-              <Users className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+              <CardTitle className="text-sm font-medium text-purple-600 dark:text-blue-400">Registered Users</CardTitle>
+              <Users className="h-4 w-4 text-purple-600 dark:text-blue-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">120</div>
-              <p className="text-xs text-muted-foreground mt-1">Across all clients</p>
+              <div className="text-2xl font-bold">{stats?.totalUsers || 0}</div>
+              <p className="text-xs text-muted-foreground">Across all clients</p>
             </CardContent>
           </Card>
 
@@ -148,8 +152,8 @@ export default function SuperAdmin() {
               <Calendar className="h-4 w-4 text-amber-600 dark:text-amber-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">₹ 45,000</div>
-              <p className="text-xs text-muted-foreground mt-1">Expected monthly</p>
+              <div className="text-2xl font-bold">₹ {stats?.revenue?.toLocaleString() || 0}</div>
+              <p className="text-xs text-muted-foreground">Expected monthly</p>
             </CardContent>
           </Card>
         </div>

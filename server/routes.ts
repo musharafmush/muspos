@@ -254,6 +254,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Tenant management routes (SaaS - Super Admin only)
+  app.get('/api/saas/stats', isSuperAdmin, async (req, res) => {
+    try {
+      const tenantsList = await storage.getTenants();
+      const userCount = await storage.getGlobalUserCount();
+      const salesRevenue = await storage.getGlobalSalesRevenue();
+      
+      res.json({
+        totalClients: tenantsList.length,
+        activeLicenses: tenantsList.filter(t => t.isActive).length,
+        totalUsers: userCount,
+        revenue: salesRevenue
+      });
+    } catch (error) {
+      console.error('Error fetching SaaS stats:', error);
+      res.status(500).json({ message: 'Internal server error while fetching SaaS stats' });
+    }
+  });
+
   app.get('/api/tenants', isSuperAdmin, async (req, res) => {
     try {
       const tenants = await storage.getTenants();

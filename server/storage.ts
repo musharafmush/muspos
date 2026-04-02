@@ -114,9 +114,18 @@ console.log('🚩 Checkpoint S1.1: Starting to define massive storage object...'
 export const storage = {
   latestBackupPath: null as string | null,
 
-  // Tenant related operations (SaaS)
   async getTenants(): Promise<any[]> {
     return await db.select().from(tenants);
+  },
+
+  async getGlobalUserCount(): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` }).from(users);
+    return Number(result[0]?.count || 0);
+  },
+
+  async getGlobalSalesRevenue(): Promise<number> {
+    const result = await db.select({ sum: sql<number>`sum(CAST(total_price AS REAL))` }).from(sales);
+    return Number(result[0]?.sum || 0);
   },
 
   async getTenantById(id: number): Promise<any | null> {
