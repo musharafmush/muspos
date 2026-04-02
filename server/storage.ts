@@ -2679,6 +2679,52 @@ export const storage = {
         sqlite.prepare('UPDATE sales SET status = ? WHERE id = ?').run('returned', returnData.saleId);
         console.log(`✅ Updated original sale ${returnData.saleId} status to 'returned'`);
 
+        // Update active cash register if one exists
+        const getActiveRegister = sqlite.prepare("SELECT id FROM cash_registers WHERE status = 'open' LIMIT 1");
+        const activeReg = getActiveRegister.get() as { id: number } | undefined;
+
+        if (activeReg) {
+          console.log(`💰 Updating active cash register ${activeReg.id} for return ${returnNumber}`);
+          const refundAmt = parseFloat(returnData.totalRefund || 0);
+          
+          // Get user name for 'created_by' field
+          const userQuery = sqlite.prepare('SELECT name FROM users WHERE id = ?');
+          const userResult = userQuery.get(returnData.userId) as { name: string } | undefined;
+          const userName = userResult?.name || 'Administrator';
+
+          // Update register totals
+          if (returnData.refundMethod === 'cash') {
+            sqlite.prepare(`
+              UPDATE cash_registers 
+              SET current_cash = COALESCE(current_cash, 0) - ?,
+                  total_refunds = COALESCE(total_refunds, 0) + ?
+              WHERE id = ?
+            `).run(refundAmt, refundAmt, activeReg.id);
+            
+            // Create register transaction record
+            sqlite.prepare(`
+              INSERT INTO cash_register_transactions (
+                register_id, type, amount, payment_method, reason, notes, reference_id, user_id, created_by, created_at
+              ) VALUES (?, 'refund', ?, 'cash', ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            `).run(
+              activeReg.id,
+              refundAmt.toString(),
+              `Refund for sale #${returnData.saleId}`,
+              returnData.notes || '',
+              returnId,
+              returnData.userId,
+              userName
+            );
+          } else {
+             // For non-cash refunds, still update total_refunds for reporting
+             sqlite.prepare(`
+              UPDATE cash_registers 
+              SET total_refunds = COALESCE(total_refunds, 0) + ?
+              WHERE id = ?
+            `).run(refundAmt, activeReg.id);
+          }
+        }
+
         // Get the created return
         const getReturn = sqlite.prepare('SELECT * FROM returns WHERE id = ?');
         const newReturn = getReturn.get(returnId);
