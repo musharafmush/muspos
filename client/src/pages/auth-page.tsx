@@ -90,8 +90,11 @@ export default function AuthPage() {
     }
   };
 
-  // Redirect to dashboard if already logged in
+  // Redirect to dashboard based on role if already logged in
   if (user) {
+    if (user.role === "super_admin") {
+      return <Redirect to="/super-admin" />;
+    }
     return <Redirect to="/" />;
   }
 

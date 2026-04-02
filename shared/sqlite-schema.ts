@@ -583,7 +583,11 @@ export const purchaseItemsRelations = relations(purchaseItems, ({ one }) => ({
 }));
 
 // Insert and select schemas
-export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
+export const insertUserSchema = createInsertSchema(users, {
+  role: z.enum(['admin', 'cashier', 'manager', 'super_admin']).default('cashier'),
+  email: (schema) => schema.email("Must be a valid email"),
+  username: (schema) => schema.min(3, "Username must be at least 3 characters").optional(),
+}).omit({ id: true, createdAt: true });
 export const userInsertSchema = insertUserSchema; // Alias for compatibility
 export const selectUserSchema = createSelectSchema(users);
 export const insertProductSchema = createInsertSchema(products, {

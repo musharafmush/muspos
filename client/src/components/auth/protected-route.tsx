@@ -33,10 +33,20 @@ export function ProtectedRoute({
     );
   }
 
-  if (adminOnly && user.role !== "admin") {
+  // Super Admin bypass for admin routes
+  if (adminOnly && user.role !== "admin" && user.role !== "super_admin") {
     return (
       <Route path={path}>
         <Redirect to="/" />
+      </Route>
+    );
+  }
+
+  // If Super Admin lands on regular dashboard, redirect to Super Admin panel
+  if (path === "/" && user.role === "super_admin") {
+    return (
+      <Route path={path}>
+        <Redirect to="/super-admin" />
       </Route>
     );
   }
