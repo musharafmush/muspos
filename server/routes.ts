@@ -2335,7 +2335,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           c.phone as customerPhone,
           u.name as userName,
           COUNT(si.id) as itemCount,
-          GROUP_CONCAT(p.name || ' (x' || si.quantity || ')', ', ') as itemsSummary
+          GROUP_CONCAT(COALESCE(p.name, 'Product') || ' (x' || si.quantity || ')', ', ') as itemsSummary
         FROM sales s
         LEFT JOIN customers c ON s.customer_id = c.id
         LEFT JOIN users u ON s.user_id = u.id
