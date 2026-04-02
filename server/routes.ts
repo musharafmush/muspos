@@ -2169,10 +2169,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           FROM sales s
           LEFT JOIN customers c ON s.customer_id = c.id
           LEFT JOIN users u ON s.user_id = u.id
-          WHERE s.tenant_id = ?
+          WHERE (s.tenant_id = ? OR s.tenant_id IS NULL)
         `;
 
         const params: any[] = [tenantId];
+        let whereAdded = true;
 
         // Add search conditions - make search more flexible
         if (search) {
@@ -2186,33 +2187,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Add date filters
-        let whereAdded = search ? true : false;
         if (startDate) {
-          query += whereAdded ? ' AND' : ' WHERE';
-          query += ' s.created_at >= ?';
+          query += ' AND s.created_at >= ?';
           params.push(startDate.toISOString());
-          whereAdded = true;
         }
 
         if (endDate) {
-          query += whereAdded ? ' AND' : ' WHERE';
-          query += ' s.created_at <= ?';
+          query += ' AND s.created_at <= ?';
           params.push(endDate.toISOString());
-          whereAdded = true;
         }
 
         if (userId) {
-          query += whereAdded ? ' AND' : ' WHERE';
-          query += ' s.user_id = ?';
+          query += ' AND s.user_id = ?';
           params.push(userId);
-          whereAdded = true;
         }
 
         if (customerId) {
-          query += whereAdded ? ' AND' : ' WHERE';
-          query += ' s.customer_id = ?';
+          query += ' AND s.customer_id = ?';
           params.push(customerId);
-          whereAdded = true;
         }
 
         // Add days filter for time range filtering
@@ -2230,10 +2222,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Format date for SQLite comparison (YYYY-MM-DD HH:mm:ss)
           const sqliteDate = dateThreshold.toISOString().slice(0, 19).replace('T', ' ');
 
-          query += whereAdded ? ' AND' : ' WHERE';
-          query += ' s.created_at >= ?';
+          query += ' AND s.created_at >= ?';
           params.push(sqliteDate);
-          whereAdded = true;
         }
 
         query += ` ORDER BY s.created_at DESC LIMIT ? OFFSET ?`;
@@ -2349,10 +2339,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/sales/recent', async (req, res) => {
+  app.get('/api/sales/recent', isAuthenticated, async (req: any, res) => {
     try {
       console.log('🔄 POS Enhanced - Recent sales endpoint accessed');
       const limit = parseInt(req.query.limit as string || '10');
+      const tenantId = req.user.tenantId || 1;
 
       // Direct database approach with proper column names
       const { sqlite } = await import('../db/index.js');
@@ -2368,10 +2359,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json([]);
       }
 
-      // Get total count first
-      const countQuery = sqlite.prepare('SELECT COUNT(*) as count FROM sales');
-      const totalCount = countQuery.get();
-      console.log(`📊 Total sales in database: ${totalCount.count}`);
+      // Get total count first for current tenant
+      const countQuery = sqlite.prepare('SELECT COUNT(*) as count FROM sales WHERE (tenant_id = ? OR tenant_id IS NULL)');
+      const totalCount = countQuery.get(tenantId);
+      console.log(`📊 Total sales in database for tenant ${tenantId}: ${totalCount.count}`);
 
       if (totalCount.count === 0) {
         console.log('📝 No sales data found - returning empty array');
@@ -2400,6 +2391,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         LEFT JOIN users u ON s.user_id = u.id
         LEFT JOIN sale_items si ON s.id = si.sale_id
         LEFT JOIN products p ON si.product_id = p.id
+        WHERE (s.tenant_id = ? OR s.tenant_id IS NULL)
         GROUP BY s.id, s.order_number, s.customer_id, s.user_id, s.total, s.tax, s.discount, 
                  s.payment_method, s.status, s.created_at, c.name, c.phone, u.name
         ORDER BY s.created_at DESC
@@ -2407,7 +2399,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       `;
 
       console.log('🔍 Executing enhanced sales query');
-      const salesData = sqlite.prepare(query).all(limit);
+      const salesData = sqlite.prepare(query).all(tenantId, limit);
 
       console.log(`✅ Found ${salesData.length} recent sales with item counts`);
 
@@ -4268,8 +4260,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Sales chart data API
   app.get('/api/dashboard/sales-chart', async (req, res) => {
     try {
+      const tenantId = (req as any).user.tenantId || 1;
       const days = parseInt(req.query.days as string) || 7;
-      const salesData = await storage.getDailySalesData(days);
+      const salesData = await storage.getDailySalesData(days, tenantId);
       res.json(salesData);
     } catch (error) {
       console.error('Error fetching sales chart data:', error);
@@ -4280,13 +4273,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Top selling products API
   app.get('/api/reports/top-selling-products', async (req, res) => {
     try {
+      const tenantId = (req as any).user.tenantId || 1;
       const days = parseInt(req.query.days as string) || 7;
       const limit = parseInt(req.query.limit as string) || 5;
 
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
 
-      const topProducts = await storage.getTopSellingProducts(limit, startDate);
+      const topProducts = await storage.getTopSellingProducts(limit, startDate, undefined, tenantId);
       res.json(topProducts);
     } catch (error) {
       // Adding profit analysis API endpoint to provide detailed profit insights.
@@ -4300,11 +4294,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Customer billing analytics API
   app.get('/api/reports/customer-billing', async (req, res) => {
     try {
+      const tenantId = (req as any).user.tenantId || 1;
       const days = parseInt(req.query.days as string) || 7;
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
 
-      const customerBilling = await storage.getCustomerBillingData(startDate);
+      const customerBilling = await storage.getCustomerBillingData(startDate, tenantId);
       res.json(customerBilling);
     } catch (error) {
       console.error('Error fetching customer billing data:', error);

@@ -2316,7 +2316,7 @@ export const storage = {
     }
   },
 
-  async getDailySalesData(days: number = 7): Promise<{ date: string; total: string; sales: number }[]> {
+  async getDailySalesData(days: number = 7, tenantId: number = 1): Promise<{ date: string; total: string; sales: number }[]> {
     try {
       const { sqlite } = await import('../db/index.js');
       const salesData = [];
@@ -2336,12 +2336,13 @@ export const storage = {
             COUNT(*) as count,
             COALESCE(SUM(CAST(total AS REAL)), 0) as revenue
           FROM sales 
-          WHERE created_at >= ? AND created_at < ?
+          WHERE created_at >= ? AND created_at < ? AND (tenant_id = ? OR tenant_id IS NULL)
         `);
 
         const result = daySalesQuery.get(
           date.toISOString(),
-          nextDate.toISOString()
+          nextDate.toISOString(),
+          tenantId
         ) as any;
 
         salesData.push({
@@ -2358,7 +2359,7 @@ export const storage = {
     }
   },
 
-  async getTopSellingProducts(limit: number = 5, startDate?: Date, endDate?: Date): Promise<any[]> {
+  async getTopSellingProducts(limit: number = 5, startDate?: Date, endDate?: Date, tenantId: number = 1): Promise<any[]> {
     try {
       const { sqlite } = await import('../db/index.js');
 
@@ -2389,13 +2390,13 @@ export const storage = {
         INNER JOIN sales s ON si.sale_id = s.id
         INNER JOIN products p ON si.product_id = p.id
         LEFT JOIN categories c ON p.category_id = c.id
-        WHERE 1=1 ${dateFilter}
+        WHERE (s.tenant_id = ? OR s.tenant_id IS NULL) ${dateFilter}
         GROUP BY p.id, p.name, p.sku, c.name
         ORDER BY sold_quantity DESC
         LIMIT ?
       `);
 
-      const results = query.all(...params);
+      const results = query.all(tenantId, ...params);
 
       return results.map((row: any) => ({
         product: {
@@ -2805,8 +2806,7 @@ export const storage = {
           }))
         };
       });
-
-      console.log(`📦 Storage: Found ${returnsWithItems.length} returns`);
+        console.log(`📦 Storage: Found ${returnsWithItems.length} returns`);
       return returnsWithItems;
 
     } catch (error) {
@@ -2815,7 +2815,7 @@ export const storage = {
     }
   },
 
-  async getCustomerBillingData(startDate: Date): Promise<any[]> {
+  async getCustomerBillingData(startDate: Date, tenantId: number = 1): Promise<any[]> {
     try {
       const { sqlite } = await import('../db/index.js');
       const query = sqlite.prepare(`
@@ -2839,12 +2839,13 @@ export const storage = {
         FROM customers c
         LEFT JOIN sales s ON c.id = s.customer_id
         WHERE (s.created_at >= ? OR s.created_at IS NULL) 
+        AND (s.tenant_id = ? OR s.tenant_id IS NULL)
         AND (s.status IS NULL OR s.status != 'returned')
         GROUP BY c.id, c.name, c.phone, c.email, c.address, c.credit_limit, c.business_name, c.tax_id
         ORDER BY total_billed DESC
       `);
 
-      const results = query.all(startDate.toISOString());
+      const results = query.all(startDate.toISOString(), tenantId);
 
       return results.map((row: any) => ({
         customerId: row.customer_id,
