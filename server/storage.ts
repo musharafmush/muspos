@@ -2252,17 +2252,19 @@ export const storage = {
       const totalProductsResult = totalProductsQuery.get() as any;
       const totalProducts = totalProductsResult.count || 0;
 
-      // Get today's sales using DATE() function for SQLite compatibility
+      // Get today's sales (Gross and Net)
       const todaySalesQuery = sqlite.prepare(`
         SELECT 
           COUNT(*) as count,
-          COALESCE(SUM(CAST(total AS REAL)), 0) as revenue
+          COALESCE(SUM(CAST(total AS REAL)), 0) as gross_revenue,
+          COALESCE(SUM(CASE WHEN status NOT IN ('returned', 'cancelled') THEN CAST(total AS REAL) ELSE 0 END), 0) as net_revenue
         FROM sales 
         WHERE DATE(created_at) = DATE('now')
       `);
       const todaySalesResult = todaySalesQuery.get() as any;
-      const todaysSales = todaySalesResult.count || 0;
-      const todaysRevenue = todaySalesResult.revenue || 0;
+      const todaysSalesCount = todaySalesResult.count || 0;
+      const todaysGrossRevenue = todaySalesResult.gross_revenue || 0;
+      const todaysNetRevenue = todaySalesResult.net_revenue || 0;
 
       // Get low stock products
       const lowStockQuery = sqlite.prepare(`
@@ -2333,21 +2335,32 @@ export const storage = {
       const todayPurchasePaymentsResult = todayPurchasePaymentsQuery.get() as any;
       const todaysPurchasePayments = todayPurchasePaymentsResult.total || 0;
 
+      // For now, purchase returns are not in a separate table, but we can check the status of purchases
+      const todayPurchaseReturnsQuery = sqlite.prepare(`
+        SELECT COALESCE(SUM(CAST(total AS REAL)), 0) as total
+        FROM purchases 
+        WHERE status = 'returned' AND DATE(created_at) = DATE('now')
+      `);
+      const todaysPurchaseReturnAmount = (todayPurchaseReturnsQuery.get() as any).total || 0;
+      
       const stats = {
         totalProducts,
-        todaysSales,
-        todaysRevenue,
+        todaysSales: todaysSalesCount,
+        todaysRevenue: todaysNetRevenue, // Show Net Revenue as primary "Total Sales"
+        todaysGrossRevenue,
+        todaysNetRevenue,
         lowStockItems,
         todaysPurchases,
         todaysPurchaseAmount,
         // Combined expenses: Operational Expenses + Purchase Payments made today
         todaysExpenses: todaysExpenses + todaysPurchasePayments,
-        todaysReturns,
-        todaysReturnAmount,
+        todaysReturns, 
+        todaysReturnAmount, // Sales returns
+        todaysPurchaseReturnAmount, // Purchase returns
         todaysPurchaseDueAmount,
         totalCashInHand,
-        // Calculate net for today (sales - total outflows - returns)
-        todaysNet: todaysRevenue - (todaysExpenses + todaysPurchasePayments) - todaysReturnAmount
+        // Calculate net for today: Net Revenue - (Expenses + Payments) + Purchase Returns
+        todaysNet: todaysNetRevenue - (todaysExpenses + todaysPurchasePayments) + todaysPurchaseReturnAmount
       };
 
       console.log('📊 Dashboard stats calculated:', stats);

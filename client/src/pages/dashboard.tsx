@@ -103,8 +103,8 @@ export default function Dashboard() {
           
           <Card className="p-2.5 sm:p-3 md:p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm" data-testid="card-sell-return">
             <div className="flex items-center gap-2 sm:gap-3">
-              <div className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex-shrink-0">
-                <ArrowDownIcon className="h-4 w-4 sm:h-5 sm:w-5 text-red-600 dark:text-red-400" />
+              <div className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex-shrink-0">
+                <ArrowDownIcon className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600 dark:text-orange-400" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 truncate">Sell Return</div>
@@ -117,8 +117,8 @@ export default function Dashboard() {
 
           <Card className="p-2.5 sm:p-3 md:p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm" data-testid="card-cash-in-hand">
             <div className="flex items-center gap-2 sm:gap-3">
-              <div className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-lg bg-primary/10 dark:bg-primary/20 flex-shrink-0">
-                <WalletIcon className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+              <div className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex-shrink-0">
+                <WalletIcon className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 truncate">Cash in Hand</div>
@@ -145,13 +145,13 @@ export default function Dashboard() {
           
           <Card className="p-2.5 sm:p-3 md:p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm" data-testid="card-purchase-return">
             <div className="flex items-center gap-2 sm:gap-3">
-              <div className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex-shrink-0">
-                <ArrowUpIcon className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 dark:text-green-400" />
+              <div className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-lg bg-teal-100 dark:bg-teal-900/30 flex-shrink-0">
+                <ArrowUpIcon className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600 dark:text-teal-400" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 truncate">Purchase Return</div>
                 <div className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-100 truncate">
-                  {isLoading ? "..." : formatCurrency(dashboardStats?.todaysReturnAmount || 0)}
+                  {isLoading ? "..." : formatCurrency(dashboardStats?.todaysPurchaseReturnAmount || 0)}
                 </div>
               </div>
             </div>
