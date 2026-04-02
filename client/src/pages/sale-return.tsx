@@ -216,7 +216,12 @@ export default function SaleReturn() {
   });
 
   const handleSaleSelect = (sale: Sale) => {
-    setSelectedSale(sale);
+    if (selectedSale?.id === sale.id) {
+      setSelectedSale(null);
+      setReturnItems([]);
+    } else {
+      setSelectedSale(sale);
+    }
   };
 
   const updateReturnQuantity = (productId: number, quantity: number) => {
