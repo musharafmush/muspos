@@ -2905,7 +2905,8 @@ export const storage = {
           MIN(CAST(s.total AS REAL)) as lowest_order
         FROM customers c
         LEFT JOIN sales s ON c.id = s.customer_id
-        WHERE s.created_at >= ? OR s.created_at IS NULL
+        WHERE (s.created_at >= ? OR s.created_at IS NULL) 
+        AND (s.status IS NULL OR s.status != 'returned')
         GROUP BY c.id, c.name, c.phone, c.email, c.address, c.credit_limit, c.business_name, c.tax_id
         ORDER BY total_billed DESC
       `);
