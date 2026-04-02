@@ -95,6 +95,9 @@ export default function SalesDashboard() {
   const [sortBy, setSortBy] = useState("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [filterDate, setFilterDate] = useState<string>("");
+  const [filterMonth, setFilterMonth] = useState<string>("all");
+  const [filterYear, setFilterYear] = useState<string>("all");
 
   // Customer Billing Details CRUD operations
   const [selectedSale, setSelectedSale] = useState<any>(null);
@@ -155,10 +158,22 @@ export default function SalesDashboard() {
 
   // Fetch sales data with enhanced customer billing details and real-time updates
   const { data: salesData, isLoading: salesLoading, error: salesError, refetch: refetchSales } = useQuery({
-    queryKey: ['/api/sales', timeRange],
+    queryKey: ['/api/sales', timeRange, filterDate, filterMonth, filterYear],
     queryFn: async () => {
       try {
-        const response = await fetch(`/api/sales?limit=100&include=customer,items,billing&days=${timeRange}`);
+        let url = `/api/sales?limit=100&include=customer,items,billing&days=${timeRange}`;
+        
+        if (filterDate) {
+          url += `&startDate=${filterDate}T00:00:00Z&endDate=${filterDate}T23:59:59Z`;
+        } else if (filterMonth !== "all" || filterYear !== "all") {
+          const year = filterYear !== "all" ? parseInt(filterYear) : new Date().getFullYear();
+          const month = filterMonth !== "all" ? parseInt(filterMonth) : 0;
+          const start = new Date(year, month, 1);
+          const end = new Date(year, month + 1, 0, 23, 59, 59);
+          url += `&startDate=${start.toISOString()}&endDate=${end.toISOString()}`;
+        }
+
+        const response = await fetch(url);
         if (!response.ok) {
           console.error('Sales API response not ok:', response.status, response.statusText);
           throw new Error(`Failed to fetch sales: ${response.status}`);
@@ -1020,6 +1035,59 @@ export default function SalesDashboard() {
                     </Select>
                   </div>
 
+                  {/* Date Filter */}
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700 mb-2 block">Filter by Day</Label>
+                    <Input 
+                      type="date" 
+                      className="h-9" 
+                      value={filterDate}
+                      onChange={(e) => setFilterDate(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Month Filter */}
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700 mb-2 block">Month</Label>
+                    <Select value={filterMonth} onValueChange={setFilterMonth}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="All Months" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Months</SelectItem>
+                        <SelectItem value="0">January</SelectItem>
+                        <SelectItem value="1">February</SelectItem>
+                        <SelectItem value="2">March</SelectItem>
+                        <SelectItem value="3">April</SelectItem>
+                        <SelectItem value="4">May</SelectItem>
+                        <SelectItem value="5">June</SelectItem>
+                        <SelectItem value="6">July</SelectItem>
+                        <SelectItem value="7">August</SelectItem>
+                        <SelectItem value="8">September</SelectItem>
+                        <SelectItem value="9">October</SelectItem>
+                        <SelectItem value="10">November</SelectItem>
+                        <SelectItem value="11">December</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Year Filter */}
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700 mb-2 block">Year</Label>
+                    <Select value={filterYear} onValueChange={setFilterYear}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="All Years" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Years</SelectItem>
+                        <SelectItem value="2024">2024</SelectItem>
+                        <SelectItem value="2025">2025</SelectItem>
+                        <SelectItem value="2026">2026</SelectItem>
+                        <SelectItem value="2027">2027</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   {/* Sort By */}
                   <div>
                     <Label className="text-sm font-medium text-gray-700 mb-2 block">Sort By</Label>
@@ -1066,6 +1134,10 @@ export default function SalesDashboard() {
                         setSearchTerm("");
                         setFilterStatus("all");
                         setFilterPaymentMethod("all");
+                        setFilterDate("");
+                        setFilterMonth("all");
+                        setFilterYear("all");
+                        setTimeRange("1");
                         setSortBy("date");
                         setSortOrder("desc");
                         setIsFilterOpen(false);
