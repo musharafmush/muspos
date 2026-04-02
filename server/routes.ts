@@ -2462,6 +2462,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: item.id,
           productId: item.product_id,
           quantity: item.quantity,
+          returned_quantity: item.returned_quantity || 0,
           unitPrice: item.unit_price || item.price,
           subtotal: item.subtotal || item.total,
           product: {
