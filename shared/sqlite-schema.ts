@@ -516,6 +516,7 @@ export const saleItemsRelations = relations(saleItems, ({ one }) => ({
     references: [sales.id]
   }),
   product: one(products, {
+    fields: [saleItems.productId],
     references: [products.id]
   })
 }));
