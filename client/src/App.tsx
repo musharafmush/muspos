@@ -124,7 +124,6 @@ function Router() {
       <ProtectedRoute path="/supplier-reports" component={SupplierReports} />
       <ProtectedRoute path="/tax-reports" component={TaxReports} />
       <ProtectedRoute path="/product-history" component={ProductHistory} />
-      <ProtectedRoute path="/sales/return" component={SaleReturn} />
       <ProtectedRoute path="/sale-return" component={SaleReturn} />
       <ProtectedRoute path="/sale-returns-dashboard" component={SaleReturnsDashboard} />
       <ProtectedRoute path="/sales-dashboard" component={SalesDashboard} />
