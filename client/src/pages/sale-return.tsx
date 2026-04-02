@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/currency';
-import { Search, ArrowLeft, RefreshCw, DollarSign, CreditCard, Banknote, ShoppingCart, Package, AlertCircle, CheckCircle, Wifi, WifiOff, Clock } from 'lucide-react';
+import { Search, ArrowLeft, RefreshCw, DollarSign, CreditCard, Banknote, ShoppingCart, Package, AlertCircle, CheckCircle, Wifi, WifiOff, Clock, Check } from 'lucide-react';
 
 interface SaleItem {
   id: number;
@@ -88,6 +88,18 @@ export default function SaleReturn() {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  // Fetch recent sales for quick selection
+  const { data: recentSales = [], isLoading: recentLoading } = useQuery<Sale[]>({
+    queryKey: ['/api/sales', { limit: 6 }],
+    queryFn: async () => {
+      const response = await fetch('/api/sales?limit=6');
+      if (!response.ok) throw new Error('Failed to fetch recent sales');
+      const data = await response.json();
+      return (data as Sale[]).filter(s => s.status === 'completed');
+    },
+    refetchInterval: 10000,
+  });
 
   // Fetch sales for search with real-time updates and instant search
   const { data: sales = [], isLoading: salesLoading, refetch: refetchSales } = useQuery<Sale[]>({
@@ -351,8 +363,11 @@ export default function SaleReturn() {
               {searchTerm.length >= 2 && (
                 <div className="flex items-center justify-between text-xs">
                   <p className="text-blue-600 flex items-center gap-1">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                    Real-time search active - Data updates every 5 seconds
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                    Real-time search active
                   </p>
                   <div className="flex items-center gap-1">
                     {isOnline ? (
@@ -360,13 +375,67 @@ export default function SaleReturn() {
                     ) : (
                       <WifiOff className="h-3 w-3 text-red-500" />
                     )}
-                    <span className={`text-xs ${isOnline ? 'text-green-600' : 'text-red-600'}`}>
-                      {isOnline ? 'Connected' : 'Offline'}
+                    <span className={`text-[10px] ${isOnline ? 'text-green-600' : 'text-red-600'}`}>
+                      {isOnline ? 'Active' : 'Offline'}
                     </span>
                   </div>
                 </div>
               )}
             </div>
+
+            {/* Quick Access Recent Sales section */}
+            {!searchTerm && !salesLoading && recentSales.length > 0 && (
+              <div className="space-y-4 pt-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-blue-500" />
+                    Recently Completed Sales
+                  </h4>
+                  <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-100 text-[10px]">
+                    Quick Select
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {recentSales.map((sale) => (
+                    <div
+                      key={sale.id}
+                      onClick={() => handleSaleSelect(sale)}
+                      className={`relative group cursor-pointer p-3 border rounded-xl transition-all duration-300 hover:shadow-lg ${
+                        selectedSale?.id === sale.id 
+                        ? 'bg-blue-50 border-blue-400 ring-1 ring-blue-400' 
+                        : 'bg-white border-gray-100 hover:border-blue-300'
+                      }`}
+                    >
+                      <div className="flex flex-col gap-2">
+                        <div className="flex justify-between items-start">
+                          <span className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+                            #{sale.orderNumber}
+                          </span>
+                          <span className="text-lg font-black text-gray-800">
+                            {formatCurrency(parseFloat(sale.total))}
+                          </span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs font-semibold text-gray-600 truncate">
+                            {sale.customer?.name || 'Walk-in Customer'}
+                          </span>
+                          <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {new Date(sale.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      {selectedSale?.id === sale.id && (
+                        <div className="absolute -top-2 -right-2 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg animate-in zoom-in">
+                          <Check className="h-3 w-3" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {salesLoading && (
               <div className="text-center py-8">
