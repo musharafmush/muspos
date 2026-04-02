@@ -6030,38 +6030,37 @@ export const storage = {
   // Payroll Management Methods
 
   // Employee Management
-  async getAllEmployees(): Promise<Employee[]> {
+  async getAllEmployees(): Promise<any[]> {
     try {
       const { sqlite } = await import('../db/index.js');
       const employees = sqlite.prepare(`
-        SELECT e.*
+        SELECT e.*, u.name as user_name, u.email as user_email
         FROM employees e
+        LEFT JOIN users u ON e.user_id = u.id
         WHERE e.status = 'active'
         ORDER BY e.created_at DESC
       `).all();
 
       return employees.map(emp => ({
         id: emp.id,
+        userId: emp.user_id,
         employeeId: emp.employee_id,
-        firstName: emp.first_name,
-        lastName: emp.last_name,
-        email: emp.email,
-        phone: emp.phone,
-        hireDate: emp.hire_date,
+        userName: emp.user_name,
+        email: emp.email || emp.user_email,
+        phone: emp.phone_number,
+        dateOfJoining: emp.date_of_joining,
         department: emp.department,
-        position: emp.position,
+        designation: emp.designation,
         employmentType: emp.employment_type,
         status: emp.status,
         address: emp.address,
-        emergencyContactName: emp.emergency_contact_name,
-        emergencyContactPhone: emp.emergency_contact_phone,
         bankAccountNumber: emp.bank_account_number,
         bankName: emp.bank_name,
         ifscCode: emp.ifsc_code,
         panNumber: emp.pan_number,
         aadharNumber: emp.aadhar_number,
-        createdAt: new Date(emp.created_at),
-        updatedAt: new Date(emp.updated_at)
+        createdAt: emp.created_at ? new Date(emp.created_at) : new Date(),
+        updatedAt: emp.updated_at ? new Date(emp.updated_at) : new Date()
       }));
     } catch (error) {
       console.error('Error fetching employees:', error);
