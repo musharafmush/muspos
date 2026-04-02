@@ -302,6 +302,9 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       return enabledModules[group.id] !== false;
     })
     .filter(group => {
+      // If Super Admin, hide all regular POS navigation groups to focus on management
+      if (currentUser?.role === 'super_admin') return false;
+      
       // Additionally, hide groups if they have an items array but it's now entirely empty after sub-item filtering (except for home)
       if (group.id !== 'home' && group.items && group.items.length === 0) return false;
       return true;
@@ -366,6 +369,22 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
           <div className="overflow-y-auto h-full">
             <nav className="mt-2 space-y-1">
+              {currentUser?.role === 'super_admin' && (
+                <Link 
+                  href="/super-admin" 
+                  onClick={() => onClose()} 
+                  className={cn(
+                    "flex items-center px-4 py-3 hover:bg-white/10 transition-colors bg-white/5 border-l-4 border-white mb-4",
+                    location === "/super-admin" && "bg-black/20"
+                  )}
+                >
+                  <div className="flex-shrink-0 text-white"><SettingsIcon className="h-5 w-5" /></div>
+                  <span className={cn(
+                    "ml-3 text-white font-bold text-xs uppercase tracking-widest",
+                    !open && "md:hidden"
+                  )}>SaaS Master Panel</span>
+                </Link>
+              )}
               {navGroups.map((group) => {
                 if (group.items.length === 1) {
                   // For groups with single items, render a simple link
