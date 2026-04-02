@@ -15,12 +15,55 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
 
   console.log('🔄 Creating database tables...');
 
+  // Tenants table for multi-tenant support (SaaS) - CREATE THIS FIRST
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tenants (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      subdomain TEXT UNIQUE,
+      logo TEXT,
+      primary_color TEXT DEFAULT '#2563eb',
+      expiry_date TEXT,
+      is_active INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Migration for existing tables to add tenant_id
+  const tablesToMigrate = ['settings', 'users', 'customers', 'products', 'sales', 'categories', 'item_product_types', 'departments', 'tax_categories', 'hsn_codes'];
+  for (const table of tablesToMigrate) {
+    try {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN tenant_id INTEGER REFERENCES tenants(id)`);
+      console.log(`✅ Added tenant_id to ${table}`);
+    } catch (e) {
+      // Column probably already exists
+    }
+  }
+
   // Settings table
   db.exec(`
     CREATE TABLE IF NOT EXISTS settings (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      key TEXT UNIQUE NOT NULL,
+      tenant_id INTEGER,
+      key TEXT NOT NULL,
       value TEXT NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+    )
+  `);
+
+  // Tenants table for multi-tenant support (SaaS)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tenants (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      subdomain TEXT UNIQUE,
+      logo TEXT,
+      primary_color TEXT DEFAULT '#2563eb',
+      expiry_date TEXT,
+      is_active INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -29,13 +72,15 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
   db.exec(`
     CREATE TABLE IF NOT EXISTS tax_categories (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER,
       name TEXT NOT NULL,
       rate REAL NOT NULL,
       hsn_code_range TEXT,
       description TEXT,
       is_active INTEGER DEFAULT 1,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (tenant_id) REFERENCES tenants(id)
     )
   `);
 
@@ -60,6 +105,7 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER,
       username TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
       name TEXT NOT NULL,
@@ -67,7 +113,8 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
       role TEXT NOT NULL DEFAULT 'cashier',
       image TEXT,
       active INTEGER NOT NULL DEFAULT 1,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (tenant_id) REFERENCES tenants(id)
     )
   `);
 
@@ -143,6 +190,7 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
   db.exec(`
     CREATE TABLE IF NOT EXISTS customers (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER,
       name TEXT NOT NULL,
       email TEXT,
       phone TEXT,
@@ -151,7 +199,8 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
       credit_limit REAL DEFAULT 0,
       outstanding_balance REAL DEFAULT 0,
       business_name TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (tenant_id) REFERENCES tenants(id)
     )
   `);
 
@@ -159,9 +208,10 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
   db.exec(`
     CREATE TABLE IF NOT EXISTS products (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER,
       name TEXT NOT NULL,
       description TEXT,
-      sku TEXT UNIQUE NOT NULL,
+      sku TEXT NOT NULL,
       price REAL NOT NULL,
       mrp REAL NOT NULL,
       cost REAL NOT NULL DEFAULT 0,
@@ -244,7 +294,8 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
       active INTEGER NOT NULL DEFAULT 1,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (category_id) REFERENCES categories(id)
+      FOREIGN KEY (category_id) REFERENCES categories(id),
+      FOREIGN KEY (tenant_id) REFERENCES tenants(id)
     )
   `);
 
@@ -252,7 +303,8 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
   db.exec(`
     CREATE TABLE IF NOT EXISTS sales (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      order_number TEXT UNIQUE NOT NULL,
+      tenant_id INTEGER,
+      order_number TEXT NOT NULL,
       customer_id INTEGER,
       user_id INTEGER NOT NULL,
       total REAL NOT NULL,
@@ -270,7 +322,8 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
       bill_number TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (customer_id) REFERENCES customers(id),
-      FOREIGN KEY (user_id) REFERENCES users(id)
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (tenant_id) REFERENCES tenants(id)
     )
   `);
 
@@ -1328,6 +1381,36 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
     }
 
     console.log('✅ Default offers created');
+  }
+
+  // --- MULTI-TENANT SEEDING ---
+  // Check for Super Admin
+  const superAdmin = db.prepare('SELECT * FROM users WHERE role = ?').get('super_admin');
+  if (!superAdmin) {
+    console.log('🔄 Creating Super Admin account...');
+    const hashedPassword = await bcrypt.hash('superadmin123', 10);
+    db.prepare(`
+      INSERT INTO users (username, password, name, email, role, active)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run('superadmin', hashedPassword, 'Super Administrator', 'superadmin@pos.com', 'super_admin', 1);
+    console.log('✅ Super Admin account created: superadmin / superadmin123');
+  }
+
+  // Check for Default Tenant (ID: 1)
+  const defaultTenant = db.prepare('SELECT * FROM tenants WHERE id = ?').get(1);
+  if (!defaultTenant) {
+     console.log('🔄 Creating Default Tenant (ID: 1)...');
+     db.prepare('INSERT INTO tenants (id, name, subdomain) VALUES (?, ?, ?)').run(1, 'Default Client', 'default');
+     console.log('✅ Default Tenant created');
+     
+     // Update existing global data to belong to Default Tenant (id: 1)
+     console.log('🔄 Migrating legacy data to default tenant...');
+     db.exec('UPDATE users SET tenant_id = 1 WHERE tenant_id IS NULL AND role != "super_admin"');
+     db.exec('UPDATE products SET tenant_id = 1 WHERE tenant_id IS NULL');
+     db.exec('UPDATE customers SET tenant_id = 1 WHERE tenant_id IS NULL');
+     db.exec('UPDATE sales SET tenant_id = 1 WHERE tenant_id IS NULL');
+     db.exec('UPDATE categories SET tenant_id = 1 WHERE tenant_id IS NULL');
+     db.exec('UPDATE settings SET tenant_id = 1 WHERE tenant_id IS NULL');
   }
 
   db.close();

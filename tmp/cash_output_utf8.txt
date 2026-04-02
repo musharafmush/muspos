@@ -1,0 +1,159 @@
+﻿--- Current Cash Registers ---
+[
+  {
+    id: 3,
+    status: 'open',
+    current_cash: 950,
+    cash_received: 0,
+    total_refunds: 0,
+    total_sales: 110,
+    total_transactions: 2
+  }
+]
+
+--- Recent Register Transactions ---
+[
+  {
+    id: 62,
+    register_id: 3,
+    type: 'sale',
+    amount: 110,
+    payment_method: 'credit',
+    description: null,
+    reference_id: null,
+    user_id: 1,
+    created_at: '2026-03-30 16:30:00',
+    reason: 'Sale POSS2YYL6L5AV9B',
+    notes: 'Customer: sadiq',
+    created_by: 'Administrator'
+  },
+  {
+    id: 61,
+    register_id: 3,
+    type: 'withdrawal',
+    amount: 50,
+    payment_method: 'cash',
+    description: null,
+    reference_id: null,
+    user_id: 1,
+    created_at: '2026-03-29 16:15:34',
+    reason: 'Cash withdrawal',
+    notes: 'Withdrawal processed from POS Enhanced',
+    created_by: 'Administrator'
+  },
+  {
+    id: 60,
+    register_id: 3,
+    type: 'opening',
+    amount: 1000,
+    payment_method: 'cash',
+    description: null,
+    reference_id: null,
+    user_id: 1,
+    created_at: '2026-03-29 16:15:02',
+    reason: 'Register opened',
+    notes: 'Register opened for POS operations',
+    created_by: 'Administrator'
+  },
+  {
+    id: 59,
+    register_id: 2,
+    type: 'closing',
+    amount: 4902,
+    payment_method: 'cash',
+    description: null,
+    reference_id: null,
+    user_id: 1,
+    created_at: '2026-03-29 16:14:48',
+    reason: 'Register closed',
+    notes: 'Register closed from POS Enhanced',
+    created_by: 'Administrator'
+  },
+  {
+    id: 58,
+    register_id: 2,
+    type: 'sale',
+    amount: 90,
+    payment_method: 'cash',
+    description: null,
+    reference_id: null,
+    user_id: 1,
+    created_at: '2026-03-29 16:13:59',
+    reason: 'Sale POS5QWS9PW7JEF8',
+    notes: 'Customer: sadiq',
+    created_by: 'Administrator'
+  },
+  {
+    id: 57,
+    register_id: 2,
+    type: 'sale',
+    amount: 90,
+    payment_method: 'cash',
+    description: null,
+    reference_id: null,
+    user_id: 1,
+    created_at: '2026-03-29 15:36:04',
+    reason: 'Sale POSW3B66HNQW2B6',
+    notes: 'Customer: sadiq',
+    created_by: 'Administrator'
+  },
+  {
+    id: 56,
+    register_id: 2,
+    type: 'sale',
+    amount: 110,
+    payment_method: 'cash',
+    description: null,
+    reference_id: null,
+    user_id: 1,
+    created_at: '2026-03-29 15:18:20',
+    reason: 'Sale POSWLW3K3D7S7XK',
+    notes: 'Customer: sadiq',
+    created_by: 'Administrator'
+  },
+  {
+    id: 55,
+    register_id: 2,
+    type: 'sale',
+    amount: 110,
+    payment_method: 'cash',
+    description: null,
+    reference_id: null,
+    user_id: 1,
+    created_at: '2026-03-29 15:11:19',
+    reason: 'Sale POSR8W2ENUQWR7M',
+    notes: 'Customer: sadiq',
+    created_by: 'Administrator'
+  },
+  {
+    id: 54,
+    register_id: 2,
+    type: 'sale',
+    amount: 110,
+    payment_method: 'cash',
+    description: null,
+    reference_id: null,
+    user_id: 1,
+    created_at: '2026-03-29 15:09:01',
+    reason: 'Sale POSESY8FUJBBLS2',
+    notes: 'Customer: sadiq',
+    created_by: 'Administrator'
+  },
+  {
+    id: 53,
+    register_id: 2,
+    type: 'sale',
+    amount: 110,
+    payment_method: 'cash',
+    description: null,
+    reference_id: null,
+    user_id: 1,
+    created_at: '2026-03-29 15:04:50',
+    reason: 'Sale POS4GTJG4Z5GMPL',
+    notes: 'Customer: sadiq',
+    created_by: 'Administrator'
+  }
+]
+
+--- Recent Returns ---
+[]

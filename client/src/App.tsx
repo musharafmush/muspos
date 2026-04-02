@@ -78,10 +78,12 @@ import PayrollEnhanced from "@/pages/payroll-enhanced";
 import PurchaseOrderDetails from "@/pages/purchase-order-details";
 import HsnCodes from "@/pages/hsn-codes";
 import TaxCategories from "@/pages/tax-categories";
+import SuperAdmin from "@/pages/super-admin";
 
 function Router() {
   return (
     <Switch>
+      <ProtectedRoute path="/super-admin" component={SuperAdmin} />
       <ProtectedRoute path="/" component={Dashboard} />
 
       <ProtectedRoute path="/pos-enhanced" component={POSEnhanced} />

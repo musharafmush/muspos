@@ -1,6 +1,7 @@
 import { db, sqlite as sqliteInstance } from "../db/index.js";
 console.log('🚩 Checkpoint S1: storage.ts starting execution');
 import {
+  tenants,
   users,
   products,
   categories,
@@ -113,6 +114,31 @@ console.log('🚩 Checkpoint S1.1: Starting to define massive storage object...'
 export const storage = {
   latestBackupPath: null as string | null,
 
+  // Tenant related operations (SaaS)
+  async getTenants(): Promise<any[]> {
+    return await db.select().from(tenants);
+  },
+
+  async getTenantById(id: number): Promise<any | null> {
+    const results = await db.select().from(tenants).where(eq(tenants.id, id));
+    return results[0] || null;
+  },
+
+  async getTenantBySubdomain(subdomain: string): Promise<any | null> {
+    const results = await db.select().from(tenants).where(eq(tenants.subdomain, subdomain));
+    return results[0] || null;
+  },
+
+  async createTenant(tenantData: { name: string; subdomain?: string; logo?: string; primaryColor?: string; expiryDate?: string }): Promise<any> {
+    const [result] = await db.insert(tenants).values({
+      ...tenantData,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }).returning();
+    return result;
+  },
+
   // User related operations
   async getUserByUsername(username: string): Promise<User | null> {
     const user = await db.query.users.findFirst({
@@ -145,11 +171,8 @@ export const storage = {
     return user || null;
   },
 
-  async createUser(user: { username?: string; password: string; name: string; email: string; role?: string }): Promise<User> {
+  async createUser(user: { username?: string; password: string; name: string; email: string; role?: string; tenantId?: number }): Promise<User> {
     const hashedPassword = await bcrypt.hash(user.password, 10);
-
-
-    // Generate username from email if not provided
     const username = user.username || user.email.split('@')[0] + '_' + Math.floor(Math.random() * 1000);
 
     const [newUser] = await db.insert(users).values({
@@ -158,6 +181,7 @@ export const storage = {
       username,
       password: hashedPassword,
       role: user.role || 'cashier',
+      tenantId: user.tenantId,
       active: true,
       createdAt: new Date().toISOString()
     }).returning();
@@ -177,8 +201,9 @@ export const storage = {
     return updatedUser || null;
   },
 
-  async listUsers(): Promise<User[]> {
+  async listUsers(tenantId: number): Promise<User[]> {
     return await db.query.users.findMany({
+      where: eq(users.tenantId, tenantId),
       orderBy: users.name
     });
   },
@@ -208,8 +233,9 @@ export const storage = {
     return result.length > 0;
   },
 
-  async listCategories(): Promise<Category[]> {
+  async listCategories(tenantId: number): Promise<Category[]> {
     return await db.query.categories.findMany({
+      where: eq(categories.tenantId, tenantId),
       orderBy: categories.name
     });
   },
@@ -356,131 +382,27 @@ export const storage = {
     }
   },
 
-
   async createProduct(product: any): Promise<Product> {
     try {
-      const { sqlite } = await import('../db/index.js');
+      const tenantId = product.tenantId || product.tenant_id || 1;
+      
+      // Clean up the input object to match the schema field names if needed
+      const productToInsert = {
+        ...product,
+        tenantId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      // Remove any fields that don't belong in the database schema or have different casing
+      if (product.wholesalePrice) productToInsert.wholesalePrice = product.wholesalePrice;
+      if (product.stockQuantity) productToInsert.stockQuantity = product.stockQuantity;
+      if (product.alertThreshold) productToInsert.alertThreshold = product.alertThreshold;
 
-      const insertProduct = sqlite.prepare(`
-        INSERT INTO products (
-          name, description, sku, price, mrp, cost, wholesale_price, weight, weight_unit, category_id, 
-          stock_quantity, alert_threshold, barcode, active, hsn_code,
-          cgst_rate, sgst_rate, igst_rate, cess_rate, tax_calculation_method,
-          manufacturer_name, supplier_name, manufacturer_id, supplier_id,
-          alias, item_product_type, department, brand, buyer,
-          purchase_gst_calculated_on, gst_uom, purchase_abatement,
-          config_item_with_commodity, senior_exempt_applicable, ean_code_required,
-          weights_per_unit, batch_expiry_details, item_preparations_status,
-          grinding_charge, weight_in_gms, bulk_item_name,
-          repackage_units, repackage_type, packaging_material,
-          decimal_point, product_type, sell_by, item_per_unit,
-          maintain_selling_mrp_by, batch_selection, is_weighable,
-          sku_type, indent_type, gate_keeper_margin, allow_item_free,
-          show_on_mobile_dashboard, enable_mobile_notifications, quick_add_to_cart,
-          perishable_item, temperature_controlled, fragile_item,
-          track_serial_numbers, fda_approved, bis_certified,
-          organic_certified, item_ingredients, created_at, updated_at
-        ) VALUES (
-          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
-          ?, ?, ?, ?, ?, 
-          ?, ?, ?, ?, ?, 
-          ?, ?, ?, ?, 
-          ?, ?, ?, ?, ?,
-          ?, ?, ?,
-          ?, ?, ?,
-          ?, ?, ?,
-          ?, ?, ?,
-          ?, ?, ?,
-          ?, ?, ?, ?,
-          ?, ?, ?,
-          ?, ?, ?, ?,
-          ?, ?, ?,
-          ?, ?, ?,
-          ?, ?, ?,
-          ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-        )
-      `);
-
-      const result = insertProduct.run(
-        product.name,
-        product.description || null,
-        product.sku,
-        product.price?.toString() || '0',
-        product.mrp?.toString() || product.price?.toString() || '0',
-        product.cost?.toString() || '0',
-        product.wholesalePrice?.toString() || null,
-        product.weight?.toString() || null,
-        product.weightUnit || 'kg',
-        product.categoryId || 1,
-        product.stockQuantity?.toString() || '0',
-        product.alertThreshold?.toString() || '5',
-        product.barcode || null,
-        product.active !== false ? 1 : 0,
-        product.hsnCode || null,
-        product.cgstRate?.toString() || '0',
-        product.sgstRate?.toString() || '0',
-        product.igstRate?.toString() || '0',
-        product.cessRate?.toString() || '0',
-        product.taxCalculationMethod || 'exclusive',
-        product.manufacturerName || null,
-        product.supplierName || null,
-        product.manufacturerId || null,
-        product.supplierId || null,
-        product.alias || null,
-        product.itemProductType || 'Standard',
-        product.department || null,
-        product.brand || null,
-        product.buyer || null,
-        product.purchaseGstCalculatedOn || 'MRP',
-        product.gstUom || 'PIECES',
-        product.purchaseAbatement || null,
-        product.configItemWithCommodity ? 1 : 0,
-        product.seniorExemptApplicable ? 1 : 0,
-        product.eanCodeRequired ? 1 : 0,
-        product.weightsPerUnit || '1',
-        product.batchExpiryDetails || 'Not Required',
-        product.itemPreparationsStatus || 'Trade As Is',
-        product.grindingCharge || null,
-        product.weightInGms || null,
-        product.bulkItemName || null,
-        product.repackageUnits || null,
-        product.repackageType || null,
-        product.packagingMaterial || null,
-        product.decimalPoint?.toString() || '0',
-        product.productType || 'NA',
-        product.sellBy || 'None',
-        product.itemPerUnit?.toString() || '1',
-        product.maintainSellingMrpBy || 'Multiple Selling Price & Multiple MRP',
-        product.batchSelection || 'Not Applicable',
-        product.isWeighable ? 1 : 0,
-        product.skuType || 'Put Away',
-        product.indentType || 'Manual',
-        product.gateKeeperMargin || null,
-        product.allowItemFree ? 1 : 0,
-        product.showOnMobileDashboard !== false ? 1 : 0,
-        product.enableMobileNotifications !== false ? 1 : 0,
-        product.quickAddToCart ? 1 : 0,
-        product.perishableItem ? 1 : 0,
-        product.temperatureControlled ? 1 : 0,
-        product.fragileItem ? 1 : 0,
-        product.trackSerialNumbers ? 1 : 0,
-        product.fdaApproved ? 1 : 0,
-        product.bisCertified ? 1 : 0,
-        product.organicCertified ? 1 : 0,
-        product.itemIngredients || null
-      );
-
-      const getProduct = sqlite.prepare('SELECT * FROM products WHERE id = ?');
-      const newProduct = getProduct.get(result.lastInsertRowid) as any;
-
-      return {
-        ...newProduct,
-        active: Boolean(newProduct.active),
-        createdAt: newProduct.created_at,
-        updatedAt: newProduct.updated_at
-      } as Product;
+      const [newProduct] = await db.insert(products).values(productToInsert).returning();
+      return newProduct;
     } catch (error) {
-      console.error("Error creating product:", error);
+      console.error('Error creating product:', error);
       throw error;
     }
   },
@@ -865,9 +787,10 @@ export const storage = {
     }
   },
 
-  async listProducts(limit?: number, offset?: number): Promise<Product[]> {
+  async listProducts(tenantId: number, limit?: number, offset?: number): Promise<Product[]> {
     try {
       const queryOptions: any = {
+        where: eq(products.tenantId, tenantId),
         orderBy: desc(products.createdAt),
         with: {
           category: true
@@ -1237,9 +1160,10 @@ export const storage = {
     }
   },
 
-  async listCustomers(): Promise<Customer[]> {
+  async listCustomers(tenantId: number): Promise<Customer[]> {
     try {
       return await db.query.customers.findMany({
+        where: eq(customers.tenantId, tenantId),
         orderBy: customers.name
       });
     } catch (error) {
@@ -1404,9 +1328,9 @@ export const storage = {
     }
   },
 
-  async listSales(limit?: number, offset?: number, startDate?: Date, endDate?: Date, userId?: number, customerId?: number): Promise<Sale[]> {
+  async listSales(tenantId: number, limit?: number, offset?: number, startDate?: Date, endDate?: Date, userId?: number, customerId?: number): Promise<Sale[]> {
     try {
-      const conditions = [];
+      const conditions = [eq(sales.tenantId, tenantId)];
 
       if (startDate) {
         conditions.push(gte(sales.createdAt, startDate));

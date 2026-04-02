@@ -46,6 +46,7 @@ const hasRole = (roles: string[]) => {
 
 const isAdmin = hasRole(['admin']);
 const isAdminOrManager = hasRole(['admin', 'manager']);
+const isSuperAdmin = hasRole(['super_admin']);
 
 import * as fs from 'fs';
 import path from 'path';
@@ -252,6 +253,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // Tenant management routes (SaaS - Super Admin only)
+  app.get('/api/tenants', isSuperAdmin, async (req, res) => {
+    try {
+      const tenants = await storage.getTenants();
+      res.json(tenants);
+    } catch (error) {
+      console.error('Error fetching tenants:', error);
+      res.status(500).json({ message: 'Internal server error while fetching tenants' });
+    }
+  });
+
+  app.post('/api/tenants', isSuperAdmin, async (req, res) => {
+    try {
+      const tenantData = req.body;
+      if (!tenantData.name) {
+        return res.status(400).json({ message: 'Tenant name is required' });
+      }
+      const newTenant = await storage.createTenant(tenantData);
+      res.status(201).json(newTenant);
+    } catch (error) {
+      console.error('Error creating tenant:', error);
+      res.status(500).json({ message: 'Internal server error while creating tenant' });
+    }
+  });
+
+  app.get('/api/tenants/:id', isSuperAdmin, async (req, res) => {
+    try {
+      const tenant = await storage.getTenantById(parseInt(req.params.id));
+      if (!tenant) {
+        return res.status(404).json({ message: 'Tenant not found' });
+      }
+      res.json(tenant);
+    } catch (error) {
+      console.error('Error fetching tenant:', error);
+      res.status(500).json({ message: 'Internal server error while fetching tenant' });
+    }
+  });
+
   app.get('/api/auth/user', (req, res) => {
     console.log('User session check');
 
@@ -297,9 +336,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Categories API
-  app.get('/api/categories', async (req, res) => {
+  app.get('/api/categories', isAuthenticated, async (req: any, res) => {
     try {
-      const categories = await storage.listCategories();
+      const tenantId = req.user.tenantId || 1;
+      const categories = await storage.listCategories(tenantId);
       res.json(categories);
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -528,15 +568,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Products API
-  app.get('/api/products', async (req, res) => {
+  app.get('/api/products', isAuthenticated, async (req: any, res) => {
     try {
       console.log('📦 Products API endpoint called');
-
-      // Fallback to storage method
-      const products = await storage.listProducts();
-      console.log(`✅ Storage method returned ${products.length} products`);
+      const tenantId = req.user.tenantId || 1;
+      const products = await storage.listProducts(tenantId);
+      console.log(`✅ Storage method returned ${products.length} products (Tenant: ${tenantId})`);
       res.json(products);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error fetching products:', error);
       res.status(500).json({
         message: 'Failed to fetch products',
@@ -2064,9 +2103,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/sales', async (req, res) => {
+  app.get('/api/sales', isAuthenticated, async (req: any, res) => {
     try {
       console.log('📊 Sales API endpoint accessed with query:', req.query);
+      const tenantId = req.user.tenantId || 1;
 
       const limit = parseInt(req.query.limit as string || '20');
       const offset = parseInt(req.query.offset as string || '0');
@@ -2111,13 +2151,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           FROM sales s
           LEFT JOIN customers c ON s.customer_id = c.id
           LEFT JOIN users u ON s.user_id = u.id
+          WHERE s.tenant_id = ?
         `;
 
-        const params = [];
+        const params: any[] = [tenantId];
 
         // Add search conditions - make search more flexible
         if (search) {
-          query += ` WHERE (
+          query += ` AND (
             LOWER(s.order_number) LIKE LOWER(?) OR
             LOWER(c.name) LIKE LOWER(?) OR
             c.phone LIKE ? OR
@@ -3742,14 +3783,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Customers API
-  app.get('/api/customers', async (req, res) => {
+  app.get('/api/customers', isAuthenticated, async (req: any, res) => {
     try {
       console.log('Fetching customers from database...');
+      const tenantId = req.user.tenantId || 1;
 
       // Try storage method first
       try {
-        const customers = await storage.listCustomers();
-        console.log('Storage method returned customers:', customers.length);
+        const customers = await storage.listCustomers(tenantId);
+        console.log('Storage method returned customers:', customers.length, 'Tenant:', tenantId);
         res.json(customers);
         return;
       } catch (storageError) {
@@ -3758,11 +3800,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Fallback to direct SQLite query
       const { sqlite } = await import('../db/index.js');
-
+      
       // Check if customers table exists
       const tableCheck = sqlite.prepare(`
-        SELECT name FROM sqlite_master 
-        WHERE type='table' AND name='customers'
+        SELECT name FROM sqlite_master WHERE type='table' AND name='customers'
       `).get();
 
       if (!tableCheck) {
@@ -3770,37 +3811,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json([]);
       }
 
-      // Get table structure
+      // Get table structure to be safe with dynamic columns
       const tableInfo = sqlite.prepare("PRAGMA table_info(customers)").all();
       const columnNames = tableInfo.map(col => col.name);
-      console.log("Available columns in customers table:", columnNames);
-
-      // Build query based on available columns
-      const selectFields = [
-        'id',
-        'name',
-        'email',
-        'phone',
-        'address',
-        columnNames.includes('tax_id') ? 'tax_id as taxId' : 'NULL as taxId',
-        columnNames.includes('credit_limit') ? 'credit_limit as creditLimit' : '0 as creditLimit',
-        columnNames.includes('outstanding_balance') ? 'outstanding_balance as outstandingBalance' : '0 as outstandingBalance',
-        columnNames.includes('business_name') ? 'business_name as businessName' : 'NULL as businessName',
-        columnNames.includes('created_at') ? 'created_at as createdAt' : 'NULL as createdAt'
-      ];
-
-      const query = `
-        SELECT ${selectFields.join(', ')}
-        FROM customers 
-        ORDER BY ${columnNames.includes('created_at') ? 'created_at' : 'id'} DESC
-      `;
-
-      console.log('Executing customers query:', query);
-      const customers = sqlite.prepare(query).all();
-
-      console.log(`Found ${customers.length} customers`);
-      res.json(customers);
-    } catch (error) {
+      
+      let query = `SELECT * FROM customers WHERE 1=1 `;
+      const params = [];
+      
+      if (columnNames.includes('tenant_id')) {
+        query += ` AND tenant_id = ? `;
+        params.push(tenantId);
+      }
+      
+      query += ` ORDER BY name `;
+      
+      const directCustomers = sqlite.prepare(query).all(...params);
+      res.json(directCustomers);
+    } catch (error: any) {
       console.error('Error fetching customers:', error);
       res.status(500).json({ message: 'Internal server error', error: error.message });
     }
@@ -4054,12 +4081,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Users API (Admin only)
-  app.get('/api/users', isAuthenticated, isAdmin, async (req, res) => {
+  app.get('/api/users', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const users = await storage.listUsers();
+      const tenantId = req.user.tenantId || 1;
+      const users = await storage.listUsers(tenantId);
       // Remove passwords from response
       const safeUsers = users.map(user => {
-        const { password, ...safeUser } = user;
+        const { password, ...safeUser } = user as any;
         return safeUser;
       });
       res.json(safeUsers);

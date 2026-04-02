@@ -84,8 +84,16 @@ console.log('🚩 Checkpoint 3: Entering async block');
     // setting up all the other routes so the catch-all route
     // doesn't interfere with the other routes
     if (app.get("env") === "development") {
-      await setupVite(app, server);
+      try {
+        console.log('🔄 Setting up Vite dev server...');
+        await setupVite(app, server);
+        console.log('✅ Vite setup successful');
+      } catch (viteError) {
+        console.error('❌ Vite setup failed, but continuing with static fallback:', viteError);
+        console.error((viteError as Error).stack);
+      }
     } else {
+      console.log('📦 Serving production static files...');
       serveStatic(app);
     }
 
@@ -96,79 +104,88 @@ console.log('🚩 Checkpoint 3: Entering async block');
 
     const startServer = () => {
       console.log(`🚀 [PID:${process.pid}] Attempting to start server on port ${port}... (Attempt ${retryCount + 1})`);
-      server.listen(port, "0.0.0.0", () => {
-        log(`serving on port ${port}`);
-        retryCount = 0; // Reset on success
-      });
-    };
-
-    // Handle server errors with better recovery
-    server.on('error', async (error: any) => {
-      console.error(`❌ [PID:${process.pid}] Server error:`, error);
-
-      // Robust EADDRINUSE handling
-      if (error.code === 'EADDRINUSE') {
-        if (retryCount >= maxRetries) {
-           console.error(`🛑 [PID:${process.pid}] Failed to bind to port ${port} after ${maxRetries} attempts. Giving up.`);
-           process.exit(1);
-        }
+      try {
+        server.listen(port, "0.0.0.0", () => {
+          log(`serving on port ${port}`);
+          retryCount = 0; // Reset on success
+          console.log('🎉 Server is fully operational and listening.');
+        });
         
-        retryCount++;
-        console.warn(`⚠️ [PID:${process.pid}] Port ${port} is currently taken.`);
-        
-        try {
-          const { execSync } = await import('child_process');
-          if (process.platform === 'linux') {
-            console.log(`🔍 [PID:${process.pid}] Linux: Checking what is using port ${port}...`);
-            try {
-              const info = execSync(`lsof -i :${port} -sTCP:LISTEN -t`).toString().trim();
-              if (info) {
-                console.log(`🗡️ [PID:${process.pid}] Found process(es) ${info} on port ${port}. Sending SIGKILL...`);
-                execSync(`kill -9 ${info}`, { stdio: 'inherit' });
-              } else {
-                console.log(`❓ [PID:${process.pid}] Port ${port} seems busy but lsof found no PID. Trying fuser...`);
-                execSync(`fuser -k ${port}/tcp`, { stdio: 'inherit' });
-              }
-            } catch (e) {
-              console.log(`⚠️ [PID:${process.pid}] lsof/fuser check failed or no process found. Using fuser -k as fallback...`);
-              try { execSync(`fuser -k ${port}/tcp`, { stdio: 'inherit' }); } catch(f) {}
+        server.on('error', async (error: any) => {
+          console.error(`❌ [PID:${process.pid}] Server error:`, error);
+
+          // Robust EADDRINUSE handling
+          if (error.code === 'EADDRINUSE') {
+            if (retryCount >= maxRetries) {
+               console.error(`🛑 [PID:${process.pid}] Failed to bind to port ${port} after ${maxRetries} attempts. Giving up.`);
+               process.exit(1);
             }
-          } else if (process.platform === 'win32') {
-            console.log(`🔍 [PID:${process.pid}] Windows: Clearing port ${port}...`);
+            
+            retryCount++;
+            console.warn(`⚠️ [PID:${process.pid}] Port ${port} is currently taken.`);
+            
             try {
-              const output = execSync(`netstat -ano | findstr :${port}`).toString();
-              const pids = output.split('\n').map(l => l.trim().split(/\s+/).pop()).filter(p => p && !isNaN(Number(p)));
-              const uniquePids = [...new Set(pids)];
-              for (const pid of uniquePids) {
-                if (pid && pid !== process.pid.toString()) {
-                  console.log(`🗡️ Killing PID: ${pid}`);
-                  execSync(`taskkill /F /PID ${pid}`, { stdio: 'inherit' });
+              const { execSync } = await import('child_process');
+              if (process.platform === 'linux') {
+                console.log(`🔍 [PID:${process.pid}] Linux: Checking what is using port ${port}...`);
+                try {
+                  const info = execSync(`lsof -i :${port} -sTCP:LISTEN -t`).toString().trim();
+                  if (info) {
+                    console.log(`🗡️ [PID:${process.pid}] Found process(es) ${info} on port ${port}. Sending SIGKILL...`);
+                    execSync(`kill -9 ${info}`, { stdio: 'inherit' });
+                  } else {
+                    console.log(`❓ [PID:${process.pid}] Port ${port} seems busy but lsof found no PID. Trying fuser...`);
+                    execSync(`fuser -k ${port}/tcp`, { stdio: 'inherit' });
+                  }
+                } catch (e) {
+                  console.log(`⚠️ [PID:${process.pid}] lsof/fuser check failed or no process found. Using fuser -k as fallback...`);
+                  try { execSync(`fuser -k ${port}/tcp`, { stdio: 'inherit' }); } catch(f) {}
+                }
+              } else if (process.platform === 'win32') {
+                console.log(`🔍 [PID:${process.pid}] Windows: Clearing port ${port}...`);
+                try {
+                  const output = execSync(`netstat -ano | findstr :${port}`).toString();
+                  const pids = output.split('\n').map(l => l.trim().split(/\s+/).pop()).filter(p => p && !isNaN(Number(p)));
+                  const uniquePids = [...new Set(pids)];
+                  for (const pid of uniquePids) {
+                    if (pid && pid !== process.pid.toString()) {
+                      console.log(`🗡️ Killing PID: ${pid}`);
+                      execSync(`taskkill /F /PID ${pid}`, { stdio: 'inherit' });
+                    }
+                  }
+                } catch (netstatError) {
+                  console.log('💡 No existing process found to kill via netstat.');
                 }
               }
-            } catch (netstatError) {
-              console.log('💡 No existing process found to kill via netstat.');
+
+              const delay = 3000 * retryCount;
+              console.log(`🔄 [PID:${process.pid}] Waiting ${delay/1000}s for port to release before retry...`);
+              setTimeout(startServer, delay);
+            } catch (killError) {
+              console.error(`❌ [PID:${process.pid}] Failed to automatically clear port:`, (killError as Error).message);
+              console.log(`💡 Manual fix: run 'sudo fuser -k ${port}/tcp'`);
+              process.exit(1);
             }
+          } else {
+            console.error('Server encountered a non-port error, will attempt to stay alive if possible.');
           }
-
-          const delay = 3000 * retryCount;
-          console.log(`🔄 [PID:${process.pid}] Waiting ${delay/1000}s for port to release before retry...`);
-          setTimeout(startServer, delay);
-        } catch (killError) {
-          console.error(`❌ [PID:${process.pid}] Failed to automatically clear port:`, (killError as Error).message);
-          console.log(`💡 Manual fix: run 'sudo fuser -k ${port}/tcp'`);
-          process.exit(1);
-        }
-        return;
+        });
+      } catch (listenError) {
+        console.error('❌ Synchronous listen error:', listenError);
+        process.exit(1);
       }
-
-      console.error('Server encountered an error, but will attempt to stay alive if possible.');
-    });
+    };
 
     startServer();
 
+    // Prevent process from exiting on empty loop
+    setInterval(() => {}, 1000000);
+
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
-    console.error('Stack:', (error as Error).stack);
+    console.error('❌ Fatal error during server startup sequence:', error);
+    if (error instanceof Error) {
+      console.error('Stack:', error.stack);
+    }
     process.exit(1);
   }
 })();

@@ -6,14 +6,29 @@ import { z } from 'zod';
 // Settings table for storing application settings
 export const settings = sqliteTable('settings', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  key: text('key').notNull().unique(),
+  tenantId: integer('tenant_id').references(() => tenants.id),
+  key: text('key').notNull(),
   value: text('value').notNull(),
+  updatedAt: text('updated_at').default(new Date().toISOString()).notNull()
+});
+
+// Tenants table for multi-tenant support (Saas)
+export const tenants = sqliteTable('tenants', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  subdomain: text('subdomain').unique(),
+  logo: text('logo'),
+  primaryColor: text('primary_color').default('#2563eb'),
+  expiryDate: text('expiry_date'),
+  isActive: integer('is_active', { mode: 'boolean' }).default(true),
+  createdAt: text('created_at').default(new Date().toISOString()).notNull(),
   updatedAt: text('updated_at').default(new Date().toISOString()).notNull()
 });
 
 // Tax Categories table for managing GST rates
 export const taxCategories = sqliteTable('tax_categories', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  tenantId: integer('tenant_id').references(() => tenants.id),
   name: text('name').notNull(),
   rate: real('rate').notNull(),
   hsnCodeRange: text('hsn_code_range'),
@@ -39,7 +54,8 @@ export const taxSettings = sqliteTable('tax_settings', {
 // HSN Code Master table for tax rate mapping
 export const hsnCodes = sqliteTable('hsn_codes', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  hsnCode: text('hsn_code').notNull().unique(),
+  tenantId: integer('tenant_id').references(() => tenants.id),
+  hsnCode: text('hsn_code').notNull(),
   description: text('description').notNull(),
   taxCategoryId: integer('tax_category_id').references(() => taxCategories.id).notNull(),
   cgstRate: real('cgst_rate').default(0),
@@ -54,7 +70,8 @@ export const hsnCodes = sqliteTable('hsn_codes', {
 // Categories table
 export const categories = sqliteTable('categories', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  name: text('name').notNull().unique(),
+  tenantId: integer('tenant_id').references(() => tenants.id),
+  name: text('name').notNull(),
   description: text('description'),
   createdAt: text('created_at').default(new Date().toISOString()).notNull()
 });
@@ -62,7 +79,8 @@ export const categories = sqliteTable('categories', {
 // Item Product Types table
 export const itemProductTypes = sqliteTable('item_product_types', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  name: text('name').notNull().unique(),
+  tenantId: integer('tenant_id').references(() => tenants.id),
+  name: text('name').notNull(),
   description: text('description'),
   active: integer('active', { mode: 'boolean' }).default(true),
   createdAt: text('created_at').default(new Date().toISOString()).notNull(),
@@ -72,7 +90,8 @@ export const itemProductTypes = sqliteTable('item_product_types', {
 // Departments table
 export const departments = sqliteTable('departments', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  name: text('name').notNull().unique(),
+  tenantId: integer('tenant_id').references(() => tenants.id),
+  name: text('name').notNull(),
   description: text('description'),
   active: integer('active', { mode: 'boolean' }).default(true),
   createdAt: text('created_at').default(new Date().toISOString()).notNull(),
@@ -82,9 +101,10 @@ export const departments = sqliteTable('departments', {
 // Products table
 export const products = sqliteTable('products', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  tenantId: integer('tenant_id').references(() => tenants.id),
   name: text('name').notNull(),
   description: text('description'),
-  sku: text('sku').notNull().unique(),
+  sku: text('sku').notNull(),
   price: real('price').notNull(),
   mrp: real('mrp').notNull(),
   cost: real('cost').notNull(),
@@ -210,6 +230,7 @@ export const suppliers = sqliteTable('suppliers', {
 // Customers table
 export const customers = sqliteTable('customers', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  tenantId: integer('tenant_id').references(() => tenants.id),
   name: text('name').notNull(),
   email: text('email'),
   phone: text('phone'),
@@ -224,11 +245,12 @@ export const customers = sqliteTable('customers', {
 // Users table
 export const users = sqliteTable('users', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  tenantId: integer('tenant_id').references(() => tenants.id),
   username: text('username').notNull().unique(),
   password: text('password').notNull(),
   name: text('name').notNull(),
   email: text('email').notNull(),
-  role: text('role').notNull().default('cashier'), // admin, cashier, manager
+  role: text('role').notNull().default('cashier'), // admin, cashier, manager, super_admin
   image: text('image'),
   active: integer('active', { mode: 'boolean' }).notNull().default(true),
   createdAt: text('created_at').default(new Date().toISOString()).notNull()
@@ -237,7 +259,8 @@ export const users = sqliteTable('users', {
 // Sales table
 export const sales = sqliteTable('sales', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  orderNumber: text('order_number').notNull().unique(),
+  tenantId: integer('tenant_id').references(() => tenants.id),
+  orderNumber: text('order_number').notNull(),
   customerId: integer('customer_id').references(() => customers.id),
   userId: integer('user_id').references(() => users.id).notNull(),
   total: real('total').notNull(),
@@ -286,7 +309,8 @@ export const saleItems = sqliteTable('sale_items', {
 // Purchases table
 export const purchases = sqliteTable('purchases', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  orderNumber: text('order_number').notNull().unique(),
+  tenantId: integer('tenant_id').references(() => tenants.id),
+  orderNumber: text('order_number').notNull(),
   supplierId: integer('supplier_id').references(() => suppliers.id).notNull(),
   userId: integer('user_id').references(() => users.id).notNull(),
   total: real('total').notNull(),
@@ -348,7 +372,8 @@ export const salesItems = sqliteTable('sales_items', {
 // Returns table
 export const returns = sqliteTable('returns', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  returnNumber: text('return_number').notNull().unique(),
+  tenantId: integer('tenant_id').references(() => tenants.id),
+  returnNumber: text('return_number').notNull(),
   saleId: integer('sale_id').references(() => sales.id).notNull(),
   userId: integer('user_id').references(() => users.id).default(1),
   refundMethod: text('refund_method').notNull().default('cash'),
@@ -373,6 +398,7 @@ export const returnItems = sqliteTable('return_items', {
 // Cash Register table
 export const cashRegisters = sqliteTable('cash_registers', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  tenantId: integer('tenant_id').references(() => tenants.id),
   registerId: integer('register_id').notNull(),
   status: text('status').notNull().default('closed'),
   openingCash: real('opening_cash').notNull().default(0),
@@ -415,6 +441,7 @@ export const cashRegisterTransactions = sqliteTable('cash_register_transactions'
 // Inventory Adjustments table
 export const inventoryAdjustments = sqliteTable('inventory_adjustments', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  tenantId: integer('tenant_id').references(() => tenants.id),
   productId: integer('product_id').references(() => products.id).notNull(),
   type: text('type').notNull(), // 'increase', 'decrease', 'correction'
   quantity: real('quantity').notNull(),
