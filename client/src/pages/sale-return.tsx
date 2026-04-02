@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DashboardLayout } from "@/components/layout/dashboard-layout";
+
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -260,8 +262,9 @@ export default function SaleReturn() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-      <div className="container mx-auto p-6 space-y-6">
+    <DashboardLayout>
+      <div className="space-y-6">
+
         {/* Header Section */}
         <div className="bg-white rounded-xl shadow-sm border p-6">
           <div className="flex items-center justify-between">
@@ -666,6 +669,6 @@ export default function SaleReturn() {
           </DialogContent>
         </Dialog>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }

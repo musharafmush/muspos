@@ -345,6 +345,31 @@ export const salesItems = sqliteTable('sales_items', {
   mrp: real('mrp')
 });
 
+// Returns table
+export const returns = sqliteTable('returns', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  returnNumber: text('return_number').notNull().unique(),
+  saleId: integer('sale_id').references(() => sales.id).notNull(),
+  userId: integer('user_id').references(() => users.id).default(1),
+  refundMethod: text('refund_method').notNull().default('cash'),
+  totalRefund: real('total_refund').notNull(),
+  reason: text('reason'),
+  notes: text('notes'),
+  status: text('status').notNull().default('completed'),
+  createdAt: text('created_at').default(new Date().toISOString()).notNull()
+});
+
+// Return items table
+export const returnItems = sqliteTable('return_items', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  returnId: integer('return_id').references(() => returns.id).notNull(),
+  productId: integer('product_id').references(() => products.id).notNull(),
+  quantity: real('quantity').notNull(),
+  unitPrice: real('unit_price').notNull(),
+  subtotal: real('subtotal').notNull(),
+  createdAt: text('created_at').default(new Date().toISOString()).notNull()
+});
+
 // Cash Register table
 export const cashRegisters = sqliteTable('cash_registers', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -460,7 +485,8 @@ export const productsRelations = relations(products, ({ one, many }) => ({
     references: [categories.id]
   }),
   saleItems: many(saleItems),
-  purchaseItems: many(purchaseItems)
+  purchaseItems: many(purchaseItems),
+  returnItems: many(returnItems)
 }));
 
 export const customersRelations = relations(customers, ({ many }) => ({
@@ -480,7 +506,8 @@ export const salesRelations = relations(sales, ({ one, many }) => ({
     fields: [sales.userId],
     references: [users.id]
   }),
-  saleItems: many(saleItems)
+  saleItems: many(saleItems),
+  returns: many(returns)
 }));
 
 export const saleItemsRelations = relations(saleItems, ({ one }) => ({
@@ -489,9 +516,19 @@ export const saleItemsRelations = relations(saleItems, ({ one }) => ({
     references: [sales.id]
   }),
   product: one(products, {
-    fields: [saleItems.productId],
     references: [products.id]
   })
+}));
+
+export const returnsRelations = relations(returns, ({ one, many }) => ({
+  sale: one(sales, { fields: [returns.saleId], references: [sales.id] }),
+  user: one(users, { fields: [returns.userId], references: [users.id] }),
+  items: many(returnItems)
+}));
+
+export const returnItemsRelations = relations(returnItems, ({ one }) => ({
+  return: one(returns, { fields: [returnItems.returnId], references: [returns.id] }),
+  product: one(products, { fields: [returnItems.productId], references: [products.id] })
 }));
 
 export const purchasesRelations = relations(purchases, ({ one, many }) => ({
@@ -1328,6 +1365,12 @@ export const selectPrintJobSchema = createSelectSchema(printJobs);
 export const insertLabelPrinterSchema = createInsertSchema(labelPrinters).omit({ id: true, createdAt: true, updatedAt: true });
 export const selectLabelPrinterSchema = createSelectSchema(labelPrinters);
 
+// Return Schemas
+export const insertReturnSchema = createInsertSchema(returns);
+export const selectReturnSchema = createSelectSchema(returns);
+export const insertReturnItemSchema = createInsertSchema(returnItems);
+export const selectReturnItemSchema = createSelectSchema(returnItems);
+
 // Types
 export type LabelTemplate = typeof labelTemplates.$inferSelect;
 export type LabelTemplateInsert = z.infer<typeof insertLabelTemplateSchema>;
@@ -1335,6 +1378,11 @@ export type PrintJob = typeof printJobs.$inferSelect;
 export type PrintJobInsert = z.infer<typeof insertPrintJobSchema>;
 export type LabelPrinter = typeof labelPrinters.$inferSelect;
 export type LabelPrinterInsert = z.infer<typeof insertLabelPrinterSchema>;
+
+export type Return = typeof returns.$inferSelect;
+export type ReturnInsert = z.infer<typeof insertReturnSchema>;
+export type ReturnItem = typeof returnItems.$inferSelect;
+export type ReturnItemInsert = z.infer<typeof insertReturnItemSchema>;
 
 
 

@@ -141,8 +141,8 @@ export default function SaleReturnsDashboard() {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-        <div className="container mx-auto p-6 space-y-6">
+      <div className="space-y-6">
+
           {/* Header Section */}
           <div className="bg-white rounded-xl shadow-sm border p-6">
             <div className="flex items-center justify-between">
@@ -518,8 +518,8 @@ export default function SaleReturnsDashboard() {
               )}
             </DialogContent>
           </Dialog>
-        </div>
       </div>
     </DashboardLayout>
+
   );
 }
