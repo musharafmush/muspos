@@ -22,6 +22,7 @@ interface SaleItem {
   quantity: number;
   unitPrice: string;
   subtotal: string;
+  returnedQuantity: number;
   product: {
     id: number;
     name: string;
@@ -136,7 +137,7 @@ export default function SaleReturn() {
         const productId = item.productId || item.product?.id || 0;
         const productName = item.product?.name || `Product #${productId}`;
         const quantity = parseInt(item.quantity?.toString() || '1');
-        const returnedQty = parseInt(item.returned_quantity?.toString() || '0');
+        const returnedQty = parseInt(item.returnedQuantity?.toString() || '0');
         const unitPrice = parseFloat(item.unitPrice?.toString() || item.product?.price?.toString() || '0');
         
         return {
@@ -191,6 +192,7 @@ export default function SaleReturn() {
       // Refresh data
       queryClient.invalidateQueries({ queryKey: ['/api/sales'] });
       queryClient.invalidateQueries({ queryKey: ['/api/returns'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/dashboard/stats'] });
     },
     onError: (error: Error) => {
       toast({

@@ -41,7 +41,8 @@ export default function Dashboard() {
       return response.json();
     },
     refetchOnWindowFocus: true,
-    staleTime: 30000, // 30 seconds
+    refetchInterval: 10000, // Refresh every 10 seconds for real-time feel
+    staleTime: 5000, // Data fresh for only 5 seconds
   });
 
   return (
