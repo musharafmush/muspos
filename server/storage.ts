@@ -1186,24 +1186,22 @@ export const storage = {
         limit: 1
       });
 
+      const { sqlite } = await import('../db/index.js');
+
       // If customer has related records, implement soft delete instead
       if (relatedSales.length > 0 || relatedLoyalty.length > 0) {
         // Update customer to inactive status instead of hard delete
-        const result = await db.update(customers)
-          .set({
-            name: `[DELETED] ${Date.now()}`,
-            email: null,
-            phone: null,
-            address: null
-          })
-          .where(eq(customers.id, id))
-          .returning({ id: customers.id });
+        const result = sqlite.prepare(`
+          UPDATE customers 
+          SET name = ?, email = NULL, phone = NULL, address = NULL
+          WHERE id = ?
+        `).run(`[DELETED] ${new Date().toLocaleDateString()}`, id);
 
-        return result.length > 0;
+        return result.changes > 0;
       } else {
         // Safe to hard delete if no related records
-        const result = await db.delete(customers).where(eq(customers.id, id)).returning({ id: customers.id });
-        return result.length > 0;
+        const result = sqlite.prepare('DELETE FROM customers WHERE id = ?').run(id);
+        return result.changes > 0;
       }
     } catch (error) {
       console.error('Error deleting customer:', error);
