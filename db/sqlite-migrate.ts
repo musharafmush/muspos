@@ -1408,25 +1408,74 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
      console.log('🔄 Creating Default Tenant (ID: 1)...');
      db.prepare('INSERT INTO tenants (id, name, subdomain) VALUES (?, ?, ?)').run(1, 'Default Client', 'default');
      console.log('✅ Default Tenant created');
-     
-     // Update existing global data to belong to Default Tenant (id: 1)
-     console.log('🔄 Migrating legacy data to default tenant...');
-     db.exec('UPDATE users SET tenant_id = 1 WHERE tenant_id IS NULL AND role != "super_admin"');
-     db.exec('UPDATE products SET tenant_id = 1 WHERE tenant_id IS NULL');
-     db.exec('UPDATE suppliers SET tenant_id = 1 WHERE tenant_id IS NULL');
-     db.exec('UPDATE sales SET tenant_id = 1 WHERE tenant_id IS NULL');
-     db.exec('UPDATE customers SET tenant_id = 1 WHERE tenant_id IS NULL');
-     db.exec('UPDATE sales SET tenant_id = 1 WHERE tenant_id IS NULL');
-     db.exec('UPDATE categories SET tenant_id = 1 WHERE tenant_id IS NULL');
-     db.exec('UPDATE settings SET tenant_id = 1 WHERE tenant_id IS NULL');
-     db.exec('UPDATE purchases SET tenant_id = 1 WHERE tenant_id IS NULL');
-     db.exec('UPDATE returns SET tenant_id = 1 WHERE tenant_id IS NULL');
-     db.exec('UPDATE cash_registers SET tenant_id = 1 WHERE tenant_id IS NULL');
-     db.exec('UPDATE inventory_adjustments SET tenant_id = 1 WHERE tenant_id IS NULL');
-     db.exec('UPDATE manufacturing_orders SET tenant_id = 1 WHERE tenant_id IS NULL');
-     db.exec('UPDATE expenses SET tenant_id = 1 WHERE tenant_id IS NULL');
-     db.exec('UPDATE offers SET tenant_id = 1 WHERE tenant_id IS NULL');
-     db.exec('UPDATE customer_loyalty SET tenant_id = 1 WHERE tenant_id IS NULL');
+  }
+
+    // ALWAYS ensure legacy data is migrated to the default tenant if tenant_id is missing
+    console.log('🔄 Checking for legacy data migration (tenant_id IS NULL)...');
+    const legacyUsers = db.prepare('SELECT count(*) as count FROM users WHERE tenant_id IS NULL AND role != "super_admin"').get() as any;
+    if (legacyUsers.count > 0) {
+      console.log(`  Migrating ${legacyUsers.count} legacy user records...`);
+      db.exec('UPDATE users SET tenant_id = 1 WHERE tenant_id IS NULL AND role != "super_admin"');
+    }
+
+    const legacySuppliers = db.prepare('SELECT count(*) as count FROM suppliers WHERE tenant_id IS NULL').get() as any;
+    if (legacySuppliers.count > 0) {
+      console.log(`  Migrating ${legacySuppliers.count} legacy supplier records...`);
+      db.exec('UPDATE suppliers SET tenant_id = 1 WHERE tenant_id IS NULL');
+    }
+
+    // Consolidated update calls (shorthand)
+    db.exec(`
+      UPDATE products SET tenant_id = 1 WHERE tenant_id IS NULL;
+      UPDATE sales SET tenant_id = 1 WHERE tenant_id IS NULL;
+      UPDATE customers SET tenant_id = 1 WHERE tenant_id IS NULL;
+      UPDATE categories SET tenant_id = 1 WHERE tenant_id IS NULL;
+      UPDATE settings SET tenant_id = 1 WHERE tenant_id IS NULL;
+      UPDATE purchases SET tenant_id = 1 WHERE tenant_id IS NULL;
+      UPDATE returns SET tenant_id = 1 WHERE tenant_id IS NULL;
+      UPDATE cash_registers SET tenant_id = 1 WHERE tenant_id IS NULL;
+      UPDATE inventory_adjustments SET tenant_id = 1 WHERE tenant_id IS NULL;
+      UPDATE expenses SET tenant_id = 1 WHERE tenant_id IS NULL;
+    `);
+
+    // --- AUTOMATED DUPLICATE SUPPLIER MERGE ---
+    console.log('🔄 Checking for duplicate suppliers to merge...');
+    const duplicateCheck = db.prepare(`
+      SELECT name, tenant_id, GROUP_CONCAT(id) as ids, COUNT(*) as count 
+      FROM suppliers 
+      GROUP BY name, tenant_id 
+      HAVING count > 1
+    `).all() as any[];
+
+    if (duplicateCheck.length > 0) {
+      console.log(`  Found ${duplicateCheck.length} duplicate supplier names. Merging...`);
+      for (const dup of duplicateCheck) {
+        const idArray = dup.ids.split(',').map(Number).sort((a: number, b: number) => a - b);
+        const masterId = idArray[0];
+        const redundantIds = idArray.slice(1);
+
+        console.log(`  Merging duplicates for "${dup.name}" (Tenant ${dup.tenant_id}) into ID ${masterId}`);
+        for (const oldId of redundantIds) {
+          db.prepare('UPDATE purchases SET supplier_id = ? WHERE supplier_id = ?').run(masterId, oldId);
+          db.prepare('UPDATE products SET supplier_id = ? WHERE supplier_id = ?').run(masterId, oldId);
+          
+          const hasExpenses = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='expenses'").get();
+          if (hasExpenses) {
+            db.prepare('UPDATE expenses SET supplier_id = ? WHERE supplier_id = ?').run(masterId, oldId);
+          }
+          
+          db.prepare('DELETE FROM suppliers WHERE id = ?').run(oldId);
+        }
+      }
+      console.log('✅ Duplicate suppliers merged successfully');
+    }
+    
+    db.exec(`
+      UPDATE manufacturing_orders SET tenant_id = 1 WHERE tenant_id IS NULL;
+      UPDATE expenses SET tenant_id = 1 WHERE tenant_id IS NULL;
+      UPDATE offers SET tenant_id = 1 WHERE tenant_id IS NULL;
+      UPDATE customer_loyalty SET tenant_id = 1 WHERE tenant_id IS NULL;
+    `);
   }
 
   db.close();
