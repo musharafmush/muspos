@@ -1,9 +1,11 @@
-console.log('🚩 Checkpoint M0: sqlite-migrate.ts starting execution');
 import Database from 'better-sqlite3';
 import path from 'path';
 import bcrypt from 'bcryptjs';
+import { fileURLToPath } from 'url';
 
-const dbPath = path.join(process.cwd(), 'pos-data.db');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const dbPath = path.join(__dirname, '..', 'pos-data.db');
 
 export async function initializeDatabase() {
   const db = new Database(dbPath);
