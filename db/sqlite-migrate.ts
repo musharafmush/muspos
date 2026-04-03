@@ -1412,56 +1412,55 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
   // --- ENSURE ALL TABLES HAVE TENANT_ID ---
   console.log('🔄 Ensuring tenant_id exists on all tables...');
   const tablesToUpdate = [
-    'users', 'customers', 'suppliers', 'products', 'sales', 'categories', 
-    'settings', 'purchases', 'returns', 'cash_registers', 'expenses', 
-    'expense_categories', 'inventory_adjustments', 'manufacturing_orders', 
-    'manufacturing_batches', 'manufacturing_recipes', 'offers', 'customer_loyalty'
+    { name: 'users', migration: true },
+    { name: 'customers', migration: true },
+    { name: 'suppliers', migration: true },
+    { name: 'products', migration: true },
+    { name: 'sales', migration: true },
+    { name: 'categories', migration: true },
+    { name: 'settings', migration: true },
+    { name: 'purchases', migration: true },
+    { name: 'returns', migration: true },
+    { name: 'cash_registers', migration: true },
+    { name: 'expenses', migration: true },
+    { name: 'expense_categories', migration: true },
+    { name: 'inventory_adjustments', migration: true },
+    { name: 'manufacturing_orders', migration: true },
+    { name: 'manufacturing_batches', migration: true },
+    { name: 'manufacturing_recipes', migration: true },
+    { name: 'recipe_ingredients', migration: true },
+    { name: 'offers', migration: true },
+    { name: 'customer_loyalty', migration: true }
   ];
 
-  for (const table of tablesToUpdate) {
+  for (const tableObj of tablesToUpdate) {
+    const table = tableObj.name;
     try {
-      // Check if column exists
+      // 1. Ensure column exists
       const info = db.prepare(`PRAGMA table_info(${table})`).all() as any[];
+      if (info.length === 0) continue; // Table doesn't exist yet
+
       const hasTenantId = info.some(col => col.name === 'tenant_id');
-      
       if (!hasTenantId) {
         console.log(`  Adding tenant_id to ${table}...`);
         db.exec(`ALTER TABLE ${table} ADD COLUMN tenant_id INTEGER`);
       }
+
+      // 2. Migrate legacy data if requested
+      if (tableObj.migration) {
+        const updateSql = table === 'users' 
+          ? 'UPDATE users SET tenant_id = 1 WHERE tenant_id IS NULL AND role != "super_admin"'
+          : `UPDATE ${table} SET tenant_id = 1 WHERE tenant_id IS NULL`;
+        
+        db.exec(updateSql);
+      }
     } catch (e: any) {
-      console.log(`  Skipped ${table} (might not exist yet): ${e.message}`);
+      console.log(`  Skipped/Failed ${table}: ${e.message}`);
     }
   }
 
-  // ALWAYS ensure legacy data is migrated to the default tenant if tenant_id is missing
-  console.log('🔄 Checking for legacy data migration (tenant_id IS NULL)...');
-    const legacyUsers = db.prepare('SELECT count(*) as count FROM users WHERE tenant_id IS NULL AND role != "super_admin"').get() as any;
-    if (legacyUsers.count > 0) {
-      console.log(`  Migrating ${legacyUsers.count} legacy user records...`);
-      db.exec('UPDATE users SET tenant_id = 1 WHERE tenant_id IS NULL AND role != "super_admin"');
-    }
-
-    const legacySuppliers = db.prepare('SELECT count(*) as count FROM suppliers WHERE tenant_id IS NULL').get() as any;
-    if (legacySuppliers.count > 0) {
-      console.log(`  Migrating ${legacySuppliers.count} legacy supplier records...`);
-      db.exec('UPDATE suppliers SET tenant_id = 1 WHERE tenant_id IS NULL');
-    }
-
-    // Consolidated update calls (shorthand)
-    db.exec(`
-      UPDATE products SET tenant_id = 1 WHERE tenant_id IS NULL;
-      UPDATE sales SET tenant_id = 1 WHERE tenant_id IS NULL;
-      UPDATE customers SET tenant_id = 1 WHERE tenant_id IS NULL;
-      UPDATE categories SET tenant_id = 1 WHERE tenant_id IS NULL;
-      UPDATE settings SET tenant_id = 1 WHERE tenant_id IS NULL;
-      UPDATE purchases SET tenant_id = 1 WHERE tenant_id IS NULL;
-      UPDATE returns SET tenant_id = 1 WHERE tenant_id IS NULL;
-      UPDATE cash_registers SET tenant_id = 1 WHERE tenant_id IS NULL;
-      UPDATE inventory_adjustments SET tenant_id = 1 WHERE tenant_id IS NULL;
-      UPDATE expenses SET tenant_id = 1 WHERE tenant_id IS NULL;
-    `);
-
-    // --- AUTOMATED DUPLICATE SUPPLIER MERGE ---
+  // --- AUTOMATED DUPLICATE SUPPLIER MERGE ---
+  try {
     console.log('🔄 Checking for duplicate suppliers to merge...');
     const duplicateCheck = db.prepare(`
       SELECT name, tenant_id, GROUP_CONCAT(id) as ids, COUNT(*) as count 
@@ -1479,26 +1478,27 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
 
         console.log(`  Merging duplicates for "${dup.name}" (Tenant ${dup.tenant_id}) into ID ${masterId}`);
         for (const oldId of redundantIds) {
-          db.prepare('UPDATE purchases SET supplier_id = ? WHERE supplier_id = ?').run(masterId, oldId);
-          db.prepare('UPDATE products SET supplier_id = ? WHERE supplier_id = ?').run(masterId, oldId);
-          
-          const hasExpenses = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='expenses'").get();
-          if (hasExpenses) {
-            db.prepare('UPDATE expenses SET supplier_id = ? WHERE supplier_id = ?').run(masterId, oldId);
+          try {
+            db.prepare('UPDATE purchases SET supplier_id = ? WHERE supplier_id = ?').run(masterId, oldId);
+            db.prepare('UPDATE products SET supplier_id = ? WHERE supplier_id = ?').run(masterId, oldId);
+            
+            // Check for expenses table
+            const expCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='expenses'").get();
+            if (expCheck) {
+              db.prepare('UPDATE expenses SET supplier_id = ? WHERE supplier_id = ?').run(masterId, oldId);
+            }
+            
+            db.prepare('DELETE FROM suppliers WHERE id = ?').run(oldId);
+          } catch (innerE: any) {
+             console.log(`    Error merging supplier ID ${oldId}: ${innerE.message}`);
           }
-          
-          db.prepare('DELETE FROM suppliers WHERE id = ?').run(oldId);
         }
       }
       console.log('✅ Duplicate suppliers merged successfully');
     }
-    
-    db.exec(`
-      UPDATE manufacturing_orders SET tenant_id = 1 WHERE tenant_id IS NULL;
-      UPDATE expenses SET tenant_id = 1 WHERE tenant_id IS NULL;
-      UPDATE offers SET tenant_id = 1 WHERE tenant_id IS NULL;
-      UPDATE customer_loyalty SET tenant_id = 1 WHERE tenant_id IS NULL;
-    `);
+  } catch (e: any) {
+    console.log(`  Supplier merge skipped: ${e.message}`);
+  }
   
   db.close();
   console.log('🎉 Database initialization completed successfully!');
