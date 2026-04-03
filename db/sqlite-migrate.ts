@@ -1402,7 +1402,6 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
     console.log('✅ Super Admin account created: superadmin / superadmin123');
   }
 
-  // Check for Default Tenant (ID: 1)
   const defaultTenant = db.prepare('SELECT * FROM tenants WHERE id = ?').get(1);
   if (!defaultTenant) {
      console.log('🔄 Creating Default Tenant (ID: 1)...');
@@ -1410,8 +1409,32 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
      console.log('✅ Default Tenant created');
   }
 
-    // ALWAYS ensure legacy data is migrated to the default tenant if tenant_id is missing
-    console.log('🔄 Checking for legacy data migration (tenant_id IS NULL)...');
+  // --- ENSURE ALL TABLES HAVE TENANT_ID ---
+  console.log('🔄 Ensuring tenant_id exists on all tables...');
+  const tablesToUpdate = [
+    'users', 'customers', 'suppliers', 'products', 'sales', 'categories', 
+    'settings', 'purchases', 'returns', 'cash_registers', 'expenses', 
+    'expense_categories', 'inventory_adjustments', 'manufacturing_orders', 
+    'manufacturing_batches', 'manufacturing_recipes', 'offers', 'customer_loyalty'
+  ];
+
+  for (const table of tablesToUpdate) {
+    try {
+      // Check if column exists
+      const info = db.prepare(`PRAGMA table_info(${table})`).all() as any[];
+      const hasTenantId = info.some(col => col.name === 'tenant_id');
+      
+      if (!hasTenantId) {
+        console.log(`  Adding tenant_id to ${table}...`);
+        db.exec(`ALTER TABLE ${table} ADD COLUMN tenant_id INTEGER`);
+      }
+    } catch (e: any) {
+      console.log(`  Skipped ${table} (might not exist yet): ${e.message}`);
+    }
+  }
+
+  // ALWAYS ensure legacy data is migrated to the default tenant if tenant_id is missing
+  console.log('🔄 Checking for legacy data migration (tenant_id IS NULL)...');
     const legacyUsers = db.prepare('SELECT count(*) as count FROM users WHERE tenant_id IS NULL AND role != "super_admin"').get() as any;
     if (legacyUsers.count > 0) {
       console.log(`  Migrating ${legacyUsers.count} legacy user records...`);
