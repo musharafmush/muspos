@@ -3572,13 +3572,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json(supplier);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching supplier:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
 
-  app.post('/api/suppliers/:id/pay', isAuthenticated, async (req, res) => {
+  app.post('/api/suppliers/:id/pay', isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const { amount, paymentMethod, notes } = req.body;
@@ -3591,15 +3591,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Invalid payment amount' });
       }
 
-      const updatedSupplier = await storage.paySupplierTotalDue(id, amount, paymentMethod, notes, req.user!.id, req.user?.tenantId || 1);
+      const userId = (req.user as any)?.id || 1;
+      const tenantId = (req.user as any)?.tenantId || 1;
+
+      const updatedSupplier = await storage.paySupplierTotalDue(id, amount, paymentMethod, notes, userId, tenantId);
       res.json(updatedSupplier);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error paying supplier total due:', error);
       res.status(500).json({ message: 'Failed to record settlement', error: error.message });
     }
   });
 
-  app.post('/api/suppliers', isAuthenticated, async (req, res) => {
+  app.post('/api/suppliers', isAuthenticated, async (req: any, res) => {
     try {
       console.log('Supplier creation request body:', req.body);
 
