@@ -1214,18 +1214,6 @@ export const storage = {
     }
   },
 
-  async listCustomers(tenantId: number): Promise<Customer[]> {
-    try {
-      return await db.query.customers.findMany({
-        where: eq(customers.tenantId, tenantId),
-        orderBy: customers.name
-      });
-    } catch (error) {
-      console.error('Error listing customers:', error);
-      throw error;
-    }
-  },
-
   async searchCustomers(query: string): Promise<Customer[]> {
     try {
       return await db.query.customers.findMany({

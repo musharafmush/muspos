@@ -3552,7 +3552,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Suppliers API
-  app.get('/api/suppliers', isAuthenticated, async (req, res) => {
+  app.get('/api/suppliers', isAuthenticated, async (req: any, res) => {
     try {
       const suppliers = await storage.listSuppliers(req.user?.tenantId || 1);
       res.json(suppliers);
@@ -3562,7 +3562,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/suppliers/:id', isAuthenticated, async (req, res) => {
+  app.get('/api/suppliers/:id', isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const supplier = await storage.getSupplierById(id, req.user?.tenantId || 1);
@@ -3653,10 +3653,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...supplier,
         message: 'Supplier created successfully'
       });
-    } catch (error) {
+    } catch (error: any) {
       if (error instanceof z.ZodError) {
         console.error('Validation errors:', JSON.stringify(error.errors, null, 2));
-        const detailedErrors = error.errors.map(err => ({
+        const detailedErrors = error.errors.map((err: any) => ({
           field: err.path.join('.'),
           message: err.message,
           received: err.received,
@@ -3688,7 +3688,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json(supplier);
-    } catch (error) {
+    } catch (error: any) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ errors: error.errors });
       }
