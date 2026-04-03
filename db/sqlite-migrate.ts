@@ -1476,8 +1476,7 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
       UPDATE offers SET tenant_id = 1 WHERE tenant_id IS NULL;
       UPDATE customer_loyalty SET tenant_id = 1 WHERE tenant_id IS NULL;
     `);
-  }
-
+  
   db.close();
   console.log('🎉 Database initialization completed successfully!');
 }
