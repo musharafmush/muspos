@@ -890,10 +890,13 @@ export const storage = {
   },
 
   // Supplier related operations
-  async getSupplierById(id: number): Promise<Supplier | null> {
+  async getSupplierById(id: number, tenantId?: number): Promise<Supplier | null> {
     try {
       return (await db.query.suppliers.findFirst({
-        where: eq(suppliers.id, id)
+        where: and(
+          eq(suppliers.id, id),
+          tenantId ? eq(suppliers.tenantId, tenantId) : undefined
+        )
       })) || null;
     } catch (error) {
       console.error('Error fetching supplier by ID:', error);
@@ -981,11 +984,14 @@ export const storage = {
     }
   },
 
-  async updateSupplier(id: number, supplier: Partial<Supplier>): Promise<Supplier | null> {
+  async updateSupplier(id: number, supplier: any, tenantId?: number): Promise<Supplier | null> {
     try {
       const [updatedSupplier] = await db.update(suppliers)
         .set(supplier)
-        .where(eq(suppliers.id, id))
+        .where(and(
+          eq(suppliers.id, id),
+          tenantId ? eq(suppliers.tenantId, tenantId) : undefined
+        ))
         .returning();
       return (updatedSupplier as Supplier) || null;
     } catch (error) {
@@ -994,16 +1000,21 @@ export const storage = {
     }
   },
 
-  async deleteSupplier(id: number): Promise<boolean> {
+  async deleteSupplier(id: number, tenantId?: number): Promise<boolean> {
     try {
       console.log('Storage: Attempting to delete supplier with ID:', id);
 
-      // Check if supplier exists first
-      const existingSupplier = await this.getSupplierById(id);
+      // Check if supplier exists first and belongs to tenant
+      const existingSupplier = await this.getSupplierById(id, tenantId);
       if (!existingSupplier) {
-        console.log('Storage: Supplier not found with ID:', id);
+        console.log('Storage: Supplier not found or does not belong to tenant with ID:', id);
         return false;
       }
+
+      await db.delete(suppliers).where(and(
+        eq(suppliers.id, id),
+        tenantId ? eq(suppliers.tenantId, tenantId) : undefined
+      ));
 
       // Use direct SQLite for reliable deletion
       const { sqlite } = await import('../db/index.js');
@@ -1494,11 +1505,11 @@ export const storage = {
     }
   },
 
-  async paySupplierTotalDue(supplierId: number, totalAmount: number, method: string, notes?: string, userId: number): Promise<any> {
+  async paySupplierTotalDue(supplierId: number, totalAmount: number, method: string, notes?: string, userId: number, tenantId: number): Promise<any> {
     try {
       const { sqlite } = await import('../db/index.js');
       
-      const supplier = await this.getSupplierById(supplierId);
+      const supplier = await this.getSupplierById(supplierId, tenantId);
       if (!supplier) throw new Error("Supplier not found");
 
       console.log(`🏦 Processing bulk payment of ${totalAmount} for supplier ${supplier.name}`);

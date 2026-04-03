@@ -3552,9 +3552,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Suppliers API
-  app.get('/api/suppliers', async (req, res) => {
+  app.get('/api/suppliers', isAuthenticated, async (req, res) => {
     try {
-      const suppliers = await storage.listSuppliers();
+      const suppliers = await storage.listSuppliers(req.user?.tenantId || 1);
       res.json(suppliers);
     } catch (error) {
       console.error('Error fetching suppliers:', error);
@@ -3562,10 +3562,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/suppliers/:id', async (req, res) => {
+  app.get('/api/suppliers/:id', isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const supplier = await storage.getSupplierById(id);
+      const supplier = await storage.getSupplierById(id, req.user?.tenantId || 1);
 
       if (!supplier) {
         return res.status(404).json({ message: 'Supplier not found' });
@@ -3591,7 +3591,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Invalid payment amount' });
       }
 
-      const updatedSupplier = await storage.paySupplierTotalDue(id, amount, paymentMethod, notes, req.user!.id);
+      const updatedSupplier = await storage.paySupplierTotalDue(id, amount, paymentMethod, notes, req.user!.id, req.user?.tenantId || 1);
       res.json(updatedSupplier);
     } catch (error) {
       console.error('Error paying supplier total due:', error);
@@ -3640,8 +3640,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const supplierData = schema.supplierInsertSchema.parse(requestData);
-      console.log('Validated supplier data:', supplierData);
+      const supplierData = {
+        ...schema.supplierInsertSchema.parse(requestData),
+        tenantId: req.user?.tenantId || 1
+      };
+      console.log('Validated supplier data with tenant:', supplierData);
 
       const supplier = await storage.createSupplier(supplierData);
       console.log('Created supplier successfully:', supplier.id);

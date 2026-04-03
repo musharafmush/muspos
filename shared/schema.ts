@@ -187,6 +187,7 @@ export const customers = pgTable('customers', {
 // Users table
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
+  tenantId: integer('tenant_id').notNull().default(1),
   username: text('username').notNull().unique(),
   password: text('password').notNull(),
   name: text('name').notNull(),

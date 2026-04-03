@@ -31,7 +31,7 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
   `);
 
   // Migration for existing tables to add tenant_id
-  const tablesToMigrate = ['settings', 'users', 'customers', 'products', 'sales', 'categories', 'item_product_types', 'departments', 'tax_categories', 'hsn_codes', 'purchases', 'returns', 'cash_registers', 'inventory_adjustments', 'manufacturing_orders', 'manufacturing_batches', 'manufacturing_recipes', 'recipe_ingredients', 'employees', 'salary_structures', 'attendance', 'leave_applications', 'payroll_records', 'employee_advances', 'payroll_settings', 'expense_categories', 'expenses', 'offers', 'customer_loyalty'];
+  const tablesToMigrate = ['settings', 'users', 'customers', 'suppliers', 'products', 'sales', 'categories', 'item_product_types', 'departments', 'tax_categories', 'hsn_codes', 'purchases', 'returns', 'cash_registers', 'inventory_adjustments', 'manufacturing_orders', 'manufacturing_batches', 'manufacturing_recipes', 'recipe_ingredients', 'employees', 'salary_structures', 'attendance', 'leave_applications', 'payroll_records', 'employee_advances', 'payroll_settings', 'expense_categories', 'expenses', 'offers', 'customer_loyalty'];
   for (const table of tablesToMigrate) {
     try {
       db.exec(`ALTER TABLE ${table} ADD COLUMN tenant_id INTEGER REFERENCES tenants(id)`);
@@ -1413,6 +1413,8 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
      console.log('🔄 Migrating legacy data to default tenant...');
      db.exec('UPDATE users SET tenant_id = 1 WHERE tenant_id IS NULL AND role != "super_admin"');
      db.exec('UPDATE products SET tenant_id = 1 WHERE tenant_id IS NULL');
+     db.exec('UPDATE suppliers SET tenant_id = 1 WHERE tenant_id IS NULL');
+     db.exec('UPDATE sales SET tenant_id = 1 WHERE tenant_id IS NULL');
      db.exec('UPDATE customers SET tenant_id = 1 WHERE tenant_id IS NULL');
      db.exec('UPDATE sales SET tenant_id = 1 WHERE tenant_id IS NULL');
      db.exec('UPDATE categories SET tenant_id = 1 WHERE tenant_id IS NULL');

@@ -213,6 +213,7 @@ export const products = sqliteTable('products', {
 // Suppliers table
 export const suppliers = sqliteTable('suppliers', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  tenantId: integer('tenant_id').references(() => tenants.id),
   name: text('name').notNull(),
   email: text('email'),
   phone: text('phone'),
