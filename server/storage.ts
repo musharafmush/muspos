@@ -928,6 +928,7 @@ export const storage = {
     discountPercent?: string;
     notes?: string;
     status?: string;
+    tenantId?: number;
   }): Promise<Supplier> {
     try {
       console.log('Storage: Creating supplier with data:', supplier);
@@ -941,8 +942,8 @@ export const storage = {
           name, email, phone, mobile_no, extension_number, fax_no, contact_person,
           address, building, street, city, state, country, pin_code, landmark,
           tax_id, registration_type, registration_number, supplier_type,
-          credit_days, discount_percent, notes, status, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+          credit_days, discount_percent, notes, status, tenant_id, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       `);
 
       const result = insertSupplier.run(
@@ -968,7 +969,8 @@ export const storage = {
         supplier.creditDays || null,
         supplier.discountPercent || null,
         supplier.notes || null,
-        supplier.status || 'active'
+        supplier.status || 'active',
+        supplier.tenantId || 1
       );
 
       // Get the created supplier using Drizzle to ensure proper mapping
@@ -1040,7 +1042,7 @@ export const storage = {
     }
   },
 
-  async listSuppliers(): Promise<Supplier[]> {
+  async listSuppliers(tenantId?: number): Promise<Supplier[]> {
     try {
       const { sqlite } = await import('../db/index.js');
       
@@ -1055,9 +1057,11 @@ export const storage = {
           AND (p.status IS NULL OR p.status != 'cancelled') 
           AND (p.payment_status IS NULL OR p.payment_status != 'paid')
         ), 0)
-      `).run();
+        WHERE tenant_id = ?
+      `).run(tenantId || 1);
 
       return await db.query.suppliers.findMany({
+        where: tenantId ? eq(suppliers.tenantId, tenantId) : undefined,
         orderBy: suppliers.name
       });
     } catch (error) {

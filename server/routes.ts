@@ -3706,7 +3706,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Invalid supplier ID' });
       }
 
-      const deleted = await storage.deleteSupplier(id);
+      const deleted = await storage.deleteSupplier(id, (req.user as any)?.tenantId || 1);
 
       if (!deleted) {
         return res.status(404).json({ message: 'Supplier not found' });
