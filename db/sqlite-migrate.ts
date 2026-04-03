@@ -31,7 +31,7 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
   `);
 
   // Migration for existing tables to add tenant_id
-  const tablesToMigrate = ['settings', 'users', 'customers', 'products', 'sales', 'categories', 'item_product_types', 'departments', 'tax_categories', 'hsn_codes'];
+  const tablesToMigrate = ['settings', 'users', 'customers', 'products', 'sales', 'categories', 'item_product_types', 'departments', 'tax_categories', 'hsn_codes', 'purchases', 'returns', 'cash_registers', 'inventory_adjustments', 'manufacturing_orders', 'manufacturing_batches', 'manufacturing_recipes', 'recipe_ingredients', 'employees', 'salary_structures', 'attendance', 'leave_applications', 'payroll_records', 'employee_advances', 'payroll_settings', 'expense_categories', 'expenses', 'offers', 'customer_loyalty'];
   for (const table of tablesToMigrate) {
     try {
       db.exec(`ALTER TABLE ${table} ADD COLUMN tenant_id INTEGER REFERENCES tenants(id)`);
@@ -347,6 +347,7 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
   db.exec(`
     CREATE TABLE IF NOT EXISTS purchases (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER,
       order_number TEXT UNIQUE NOT NULL,
       supplier_id INTEGER NOT NULL,
       user_id INTEGER NOT NULL,
@@ -359,8 +360,11 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
       received_date TEXT,
       notes TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      amount_paid REAL DEFAULT 0,
+      payment_status TEXT NOT NULL DEFAULT 'unpaid',
       FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
-      FOREIGN KEY (user_id) REFERENCES users(id)
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (tenant_id) REFERENCES tenants(id)
     )
   `);
 
@@ -404,6 +408,7 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
   db.exec(`
     CREATE TABLE IF NOT EXISTS returns (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id INTEGER,
       return_number TEXT UNIQUE,
       sale_id INTEGER NOT NULL,
       user_id INTEGER NOT NULL,
@@ -414,7 +419,8 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
       status TEXT NOT NULL DEFAULT 'completed',
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (sale_id) REFERENCES sales(id),
-      FOREIGN KEY (user_id) REFERENCES users(id)
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (tenant_id) REFERENCES tenants(id)
     )
   `);
 
@@ -1411,6 +1417,14 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
      db.exec('UPDATE sales SET tenant_id = 1 WHERE tenant_id IS NULL');
      db.exec('UPDATE categories SET tenant_id = 1 WHERE tenant_id IS NULL');
      db.exec('UPDATE settings SET tenant_id = 1 WHERE tenant_id IS NULL');
+     db.exec('UPDATE purchases SET tenant_id = 1 WHERE tenant_id IS NULL');
+     db.exec('UPDATE returns SET tenant_id = 1 WHERE tenant_id IS NULL');
+     db.exec('UPDATE cash_registers SET tenant_id = 1 WHERE tenant_id IS NULL');
+     db.exec('UPDATE inventory_adjustments SET tenant_id = 1 WHERE tenant_id IS NULL');
+     db.exec('UPDATE manufacturing_orders SET tenant_id = 1 WHERE tenant_id IS NULL');
+     db.exec('UPDATE expenses SET tenant_id = 1 WHERE tenant_id IS NULL');
+     db.exec('UPDATE offers SET tenant_id = 1 WHERE tenant_id IS NULL');
+     db.exec('UPDATE customer_loyalty SET tenant_id = 1 WHERE tenant_id IS NULL');
   }
 
   db.close();
