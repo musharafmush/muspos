@@ -2113,8 +2113,14 @@ export default function PurchaseEntryProfessional() {
               </Button>
             </Link>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">Purchase Entry</h1>
-              <p className="text-muted-foreground">Create new purchase order</p>
+            <div className="flex flex-col gap-1">
+              <h1 className="text-2xl font-bold tracking-tight">
+                {isEditMode ? `Edit Purchase Order: ${form.getValues('orderNumber') || '#' + editId}` : "Purchase Entry"}
+              </h1>
+              <p className="text-muted-foreground">
+                {isEditMode ? "Modify existing purchase order details and items" : "Create new purchase order"}
+              </p>
+            </div>
             </div>
           </div>
 

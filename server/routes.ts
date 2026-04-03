@@ -2708,7 +2708,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { sqlite } = await import('../db/index.js');
 
       const existingPurchaseQuery = sqlite.prepare('SELECT * FROM purchases WHERE id = ?');
-      const existingPurchase = existingPurchaseQuery.get(id);
+      const existingPurchase = existingPurchaseQuery.get(id) as any;
 
       if (!existingPurchase) {
         return res.status(404).json({
@@ -2723,8 +2723,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = sqlite.transaction(() => {
         try {
           // Ensure purchases table has all required columns
-          const tableInfo = sqlite.prepare("PRAGMA table_info(purchases)").all();
-          const columnNames = tableInfo.map(col => col.name);
+          const tableInfo = sqlite.prepare("PRAGMA table_info(purchases)").all() as any[];
+          const columnNames = tableInfo.map((col: any) => col.name);
           console.log('📋 Available columns:', columnNames);
 
           // Build dynamic update query based on available columns
@@ -2802,20 +2802,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             `);
             const existingItems = existingItemsQuery.all(id);
 
-            // Create map of existing quantities
-            const existingQtyMap = new Map();
-            existingItems.forEach(item => {
-              existingQtyMap.set(item.product_id, item.received_qty || 0);
-            });
-
-            // Delete existing items
-            const deleteItems = sqlite.prepare('DELETE FROM purchase_items WHERE purchase_id = ?');
-            const deleteResult = deleteItems.run(id);
-            console.log(`🗑️ Deleted ${deleteResult.changes} existing items`);
-
             // Check if purchase_items table exists and get its structure
-            const itemTableInfo = sqlite.prepare("PRAGMA table_info(purchase_items)").all();
-            const itemColumnNames = itemTableInfo.map(col => col.name);
+            const itemTableInfo = sqlite.prepare("PRAGMA table_info(purchase_items)").all() as any[];
+            const itemColumnNames = itemTableInfo.map((col: any) => col.name);
             console.log('📋 Available item columns:', itemColumnNames);
 
             // Build dynamic insert query for items
@@ -2851,22 +2840,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
               WHERE id = ?
             `);
 
-            let itemsProcessed = 0;
+            // Collect all inventory changes needed
+            const inventoryChangesMap = new Map(); // productId -> netChange
 
-            updateData.items.forEach((item: any, index: number) => {
-              if (!item.productId || item.productId <= 0) {
-                console.log(`⚠️ Skipping item ${index + 1}: Invalid product ID`);
-                return;
+            // Subtract quantities of existing items
+            existingItems.forEach((item: any) => {
+              if (item.product_id) {
+                const current = inventoryChangesMap.get(item.product_id) || 0;
+                inventoryChangesMap.set(item.product_id, current - (item.received_qty || 0));
               }
+            });
+
+            // Add quantities of new items
+            updateData.items.forEach(item => {
+              if (item.productId && item.productId > 0) {
+                const current = inventoryChangesMap.get(item.productId) || 0;
+                const receivedQty = Math.max(parseInt(item.receivedQty || item.quantity || 0), 0);
+                inventoryChangesMap.set(item.productId, current + receivedQty);
+              }
+            });
+
+            // Apply all inventory changes
+            inventoryChangesMap.forEach((change, pid) => {
+              if (change !== 0) {
+                updateStock.run(change, 0, pid); // cost will be updated individually below
+                console.log(`📦 Applied net inventory change for product ${pid}: ${change > 0 ? '+' : ''}${change}`);
+              }
+            });
+
+            // Delete existing items
+            const deleteItems = sqlite.prepare('DELETE FROM purchase_items WHERE purchase_id = ?');
+            const deleteResult = deleteItems.run(id);
+            console.log(`🗑️ Deleted ${deleteResult.changes} existing items from purchase_items`);
+
+            // Re-insert ALL items (including unchanged ones)
+            let itemsProcessed = 0;
+            updateData.items.forEach((item: any, index: number) => {
+              if (!item.productId || item.productId <= 0) return;
 
               const receivedQty = Math.max(parseInt(item.receivedQty || item.quantity || 0), 0);
               const quantity = Math.max(parseInt(item.quantity || receivedQty || 1), 0);
               const unitCost = Math.max(parseFloat(item.unitCost || 0), 0);
-
-              if (receivedQty === 0 || unitCost === 0) {
-                console.log(`⚠️ Skipping item ${index + 1}: Zero quantity or cost`);
-                return;
-              }
 
               // Build values array based on available columns
               const itemValues = [id, item.productId]; // Required fields
@@ -2874,102 +2888,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
               optionalItemFields.forEach(field => {
                 if (itemColumnNames.includes(field)) {
                   switch (field) {
-                    case 'quantity':
-                      itemValues.push(quantity);
-                      break;
-                    case 'received_qty':
-                      itemValues.push(receivedQty);
-                      break;
-                    case 'free_qty':
-                      itemValues.push(parseInt(item.freeQty || 0));
-                      break;
+                    case 'quantity': itemValues.push(quantity); break;
+                    case 'received_qty': itemValues.push(receivedQty); break;
+                    case 'free_qty': itemValues.push(parseInt(item.freeQty || 0)); break;
                     case 'unit_cost':
-                    case 'cost':
-                      itemValues.push(unitCost);
-                      break;
-                    case 'selling_price':
-                      itemValues.push(parseFloat(item.sellingPrice || 0));
-                      break;
-                    case 'wholesale_price':
-                      itemValues.push(parseFloat(item.wholesalePrice || 0));
-                      break;
-                    case 'mrp':
-                      itemValues.push(parseFloat(item.mrp || 0));
-                      break;
-                    case 'hsn_code':
-                      itemValues.push(item.hsnCode || '');
-                      break;
-                    case 'tax_percentage':
-                      itemValues.push(parseFloat(item.taxPercentage || 0));
-                      break;
-                    case 'discount_amount':
-                      itemValues.push(parseFloat(item.discountAmount || 0));
-                      break;
-                    case 'discount_percent':
-                      itemValues.push(parseFloat(item.discountPercent || 0));
-                      break;
-                    case 'expiry_date':
-                      itemValues.push(item.expiryDate || '');
-                      break;
-                    case 'batch_number':
-                      itemValues.push(item.batchNumber || '');
-                      break;
-                    case 'net_cost':
-                      itemValues.push(parseFloat(item.netCost || unitCost));
-                      break;
-                    case 'roi_percent':
-                      itemValues.push(parseFloat(item.roiPercent || 0));
-                      break;
-                    case 'gross_profit_percent':
-                      itemValues.push(parseFloat(item.grossProfitPercent || 0));
-                      break;
-                    case 'net_amount':
-                      itemValues.push(parseFloat(item.netAmount || (receivedQty * unitCost)));
-                      break;
-                    case 'cash_percent':
-                      itemValues.push(parseFloat(item.cashPercent || 0));
-                      break;
-                    case 'cash_amount':
-                      itemValues.push(parseFloat(item.cashAmount || 0));
-                      break;
-                    case 'location':
-                      itemValues.push(item.location || '');
-                      break;
-                    case 'unit':
-                      itemValues.push(item.unit || 'PCS');
-                      break;
+                    case 'cost': itemValues.push(unitCost); break;
+                    case 'selling_price': itemValues.push(parseFloat(item.sellingPrice || 0)); break;
+                    case 'wholesale_price': itemValues.push(parseFloat(item.wholesalePrice || 0)); break;
+                    case 'mrp': itemValues.push(parseFloat(item.mrp || 0)); break;
+                    case 'hsn_code': itemValues.push(item.hsnCode || ''); break;
+                    case 'tax_percentage': itemValues.push(parseFloat(item.taxPercentage || 0)); break;
+                    case 'discount_amount': itemValues.push(parseFloat(item.discountAmount || 0)); break;
+                    case 'discount_percent': itemValues.push(parseFloat(item.discountPercent || 0)); break;
+                    case 'expiry_date': itemValues.push(item.expiryDate || ''); break;
+                    case 'batch_number': itemValues.push(item.batchNumber || ''); break;
+                    case 'net_cost': itemValues.push(parseFloat(item.netCost || unitCost)); break;
+                    case 'roi_percent': itemValues.push(parseFloat(item.roiPercent || 0)); break;
+                    case 'gross_profit_percent': itemValues.push(parseFloat(item.grossProfitPercent || 0)); break;
+                    case 'net_amount': itemValues.push(parseFloat(item.netAmount || (receivedQty * unitCost))); break;
+                    case 'cash_percent': itemValues.push(parseFloat(item.cashPercent || 0)); break;
+                    case 'cash_amount': itemValues.push(parseFloat(item.cashAmount || 0)); break;
+                    case 'location': itemValues.push(item.location || ''); break;
+                    case 'unit': itemValues.push(item.unit || 'PCS'); break;
                     case 'subtotal':
                     case 'total':
-                    case 'amount':
-                      itemValues.push(receivedQty * unitCost);
-                      break;
-                    default:
-                      itemValues.push(null);
+                    case 'amount': itemValues.push(receivedQty * unitCost); break;
+                    default: itemValues.push(null);
                   }
                 }
               });
 
               try {
-                // Insert the item
                 insertItem.run(...itemValues);
-
-                // Update stock - calculate difference from existing
-                const oldQty = existingQtyMap.get(item.productId) || 0;
-                const stockDifference = receivedQty - oldQty;
-
-                if (item.productId) {
-                  const stockResult = updateStock.run(stockDifference, unitCost, item.productId);
-                  console.log(`📦 Stock & Cost adjustment for product ${item.productId}: ${stockDifference > 0 ? '+' : ''}${stockDifference} (changes: ${stockResult.changes})`);
+                // Individual product cost update if provided
+                if (unitCost > 0) {
+                  const updateProductCost = sqlite.prepare('UPDATE products SET cost = ? WHERE id = ?');
+                  updateProductCost.run(unitCost, item.productId);
                 }
-
                 itemsProcessed++;
-              } catch (itemError) {
+              } catch (itemError: any) {
                 console.error(`❌ Error inserting item ${index + 1}:`, itemError);
                 throw new Error(`Failed to insert item ${index + 1}: ${itemError.message}`);
               }
             });
 
-            console.log(`✅ Successfully processed ${itemsProcessed} items`);
+            console.log(`✅ Successfully re-processed ${itemsProcessed} items`);
           }
 
           // Calculate and update total if needed
@@ -2998,9 +2961,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log('✅ Purchase update completed successfully');
           return updatedPurchase;
 
-        } catch (transactionError) {
-          console.error('❌ Transaction error:', transactionError);
-          throw transactionError;
+        } catch (error: any) {
+          console.error('❌ Error updating purchase:', error);
+
+          // Provide specific error messages
+          let errorMessage = 'Failed to update purchase order';
+          let userMessage = error.message;
+
+          if (error.message?.includes('SQLITE_CONSTRAINT')) {
+            userMessage = 'Data validation error. Please check all required fields.';
+          } else if (error.message?.includes('no such table')) {
+            userMessage = 'Database table missing. Please contact support.';
+          } else if (error.message?.includes('no such column')) {
+            userMessage = 'Database schema mismatch. Please refresh and try again.';
+          }
+
+          res.status(500).json({
+            success: false,
+            message: errorMessage,
+            error: userMessage,
+            technical: error.message,
+            timestamp: new Date().toISOString()
+          });
         }
       })();
 
@@ -3012,7 +2994,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         timestamp: new Date().toISOString()
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error updating purchase:', error);
 
       // Provide specific error messages
