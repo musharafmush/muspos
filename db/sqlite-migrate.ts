@@ -1501,6 +1501,52 @@ console.log('🚩 Checkpoint M0: Pragma skipped in migrations');
   } catch (e: any) {
     console.log(`  Supplier merge skipped: ${e.message}`);
   }
+
+  // --- AUTOMATED DUPLICATE CUSTOMER MERGE ---
+  try {
+    console.log('🔄 Checking for duplicate customers to merge...');
+    // We group by tenant_id, name, and phone (coalescing NULL phone to empty string for grouping)
+    const duplicateCheck = db.prepare(`
+      SELECT name, tenant_id, COALESCE(phone, '') as phone_grouped, GROUP_CONCAT(id) as ids, COUNT(*) as count 
+      FROM customers 
+      GROUP BY name, tenant_id, phone_grouped
+      HAVING count > 1
+    `).all() as any[];
+
+    if (duplicateCheck.length > 0) {
+      console.log(`  Found ${duplicateCheck.length} groups of duplicate customer records. Merging...`);
+      for (const dup of duplicateCheck) {
+        const idArray = dup.ids.split(',').map(Number).sort((a: number, b: number) => a - b);
+        const masterId = idArray[0];
+        const redundantIds = idArray.slice(1);
+
+        console.log(`  Merging duplicates for "${dup.name}" / "${dup.phone_grouped}" (Tenant ${dup.tenant_id}) into ID ${masterId}`);
+        for (const oldId of redundantIds) {
+          try {
+            // Update references in all tables that use customer_id
+            db.prepare('UPDATE sales SET customer_id = ? WHERE customer_id = ?').run(masterId, oldId);
+            
+            const loyaltyCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='customer_loyalty'").get();
+            if (loyaltyCheck) {
+               db.prepare('UPDATE customer_loyalty SET customer_id = ? WHERE customer_id = ?').run(masterId, oldId);
+            }
+            
+            const offerCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='offer_usage'").get();
+            if (offerCheck) {
+               db.prepare('UPDATE offer_usage SET customer_id = ? WHERE customer_id = ?').run(masterId, oldId);
+            }
+            
+            db.prepare('DELETE FROM customers WHERE id = ?').run(oldId);
+          } catch (innerE: any) {
+             console.log(`    Error merging customer ID ${oldId}: ${innerE.message}`);
+          }
+        }
+      }
+      console.log('✅ Duplicate customers merged successfully');
+    }
+  } catch (e: any) {
+    console.log(`  Customer merge skipped: ${e.message}`);
+  }
   
   db.close();
   console.log('🎉 Database initialization completed successfully!');

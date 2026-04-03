@@ -15,6 +15,19 @@ export const settings = pgTable('settings', {
   updatedAt: timestamp('updated_at').defaultNow().notNull()
 });
 
+// Tenants table for multi-tenant support (Saas)
+export const tenants = pgTable('tenants', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  subdomain: text('subdomain').unique(),
+  logo: text('logo'),
+  primaryColor: text('primary_color').default('#2563eb'),
+  expiryDate: text('expiry_date'),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
+});
+
 // Tax Categories table for managing GST rates
 export const taxCategories = pgTable('tax_categories', {
   id: serial('id').primaryKey(),
@@ -174,12 +187,14 @@ export const products = pgTable('products', {
 // Customers table
 export const customers = pgTable('customers', {
   id: serial('id').primaryKey(),
+  tenantId: integer('tenant_id').references(() => tenants.id),
   name: text('name').notNull(),
   email: text('email'),
   phone: text('phone'),
   address: text('address'),
   taxId: text('tax_id'),
   creditLimit: decimal('credit_limit', { precision: 10, scale: 2 }).default('0'),
+  outstandingBalance: decimal('outstanding_balance', { precision: 10, scale: 3 }).default('0'),
   businessName: text('business_name'),
   createdAt: timestamp('created_at').defaultNow().notNull()
 });
@@ -229,10 +244,12 @@ export const saleItems = pgTable('sale_items', {
 // Suppliers table
 export const suppliers = pgTable('suppliers', {
   id: serial('id').primaryKey(),
+  tenantId: integer('tenant_id').references(() => tenants.id),
   name: text('name').notNull(),
   email: text('email'),
   phone: text('phone'),
   address: text('address'),
+  outstandingBalance: decimal('outstanding_balance', { precision: 10, scale: 3 }).default('0'),
   contactPerson: text('contact_person'),
   taxId: text('tax_id'),
   registrationType: text('registration_type'),

@@ -3828,12 +3828,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/customers/:id', async (req, res) => {
+  app.get('/api/customers/:id', isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
+      const tenantId = req.user.tenantId || 1;
       const customer = await storage.getCustomerById(id);
 
-      if (!customer) {
+      if (!customer || (customer.tenantId && customer.tenantId !== tenantId)) {
         return res.status(404).json({ message: 'Customer not found' });
       }
 
@@ -3845,9 +3846,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create customer
-  app.post("/api/customers", async (req, res) => {
+  app.post("/api/customers", isAuthenticated, async (req: any, res) => {
     try {
-      const { name, email, phone, address, taxNumber, creditLimit, businessName } = req.body;
+      const { name, email, phone, address, tax_id, taxNumber, credit_limit, creditLimit, business_name, businessName } = req.body;
+      const tenantId = req.user.tenantId || 1;
 
       console.log("Customer creation request received:", req.body);
 
@@ -3855,25 +3857,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!name || name.trim() === "") {
         return res.status(400).json({ error: "Customer name is required" });
       }
-
-      // Use direct SQLite insertion to avoid schema mapping issues
-      const { sqlite } = await import('../db/index.js');
-
-      // Check what columns exist in the customers table
-      const tableInfo = sqlite.prepare("PRAGMA table_info(customers)").all();
-      const columnNames = tableInfo.map(col => col.name);
-      console.log("Available columns in customers table:", columnNames);
-
-      // Prepare customer data with proper null handling
-      const customerData = {
-        name: name.trim(),
-        email: (email && email.trim() !== "") ? email.trim() : null,
-        phone: (phone && phone.trim() !== "") ? phone.trim() : null,
-        address: (address && address.trim() !== "") ? address.trim() : null,
-        tax_id: (taxNumber && taxNumber.trim() !== "") ? taxNumber.trim() : null,
-        credit_limit: (creditLimit && !isNaN(parseFloat(creditLimit))) ? parseFloat(creditLimit) : 0,
-        business_name: (businessName && businessName.trim() !== "") ? businessName.trim() : null,
-      };
 
       console.log("Creating customer with processed data:", customerData);
 

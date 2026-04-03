@@ -1070,6 +1070,18 @@ export const storage = {
     }
   },
 
+  async listCustomers(tenantId?: number): Promise<Customer[]> {
+    try {
+      return await db.query.customers.findMany({
+        where: tenantId ? eq(customers.tenantId, tenantId) : undefined,
+        orderBy: customers.name
+      });
+    } catch (error) {
+      console.error('Error listing customers:', error);
+      throw error;
+    }
+  },
+
   // Customer related operations
   async getCustomerById(id: number): Promise<Customer | null> {
     try {
@@ -1090,21 +1102,36 @@ export const storage = {
     taxId?: string;
     creditLimit?: number;
     businessName?: string;
+    tenantId?: number;
   }): Promise<Customer> {
     try {
       console.log('Storage: Creating customer with data:', customer);
 
-      // Import SQLite database directly for reliable creation
       const { sqlite } = await import('../db/index.js');
+      const tenantId = customer.tenantId || 1;
+
+      // 🛑 UNIQUE CHECK: Name + Phone must be unique for this tenant
+      if (customer.phone) {
+        const existing = sqlite.prepare('SELECT id FROM customers WHERE name = ? AND phone = ? AND (tenant_id = ? OR tenant_id IS NULL)').get(customer.name, customer.phone, tenantId);
+        if (existing) {
+          throw new Error(`Customer with name "${customer.name}" and phone "${customer.phone}" already exists.`);
+        }
+      } else {
+        const existing = sqlite.prepare('SELECT id FROM customers WHERE name = ? AND (phone IS NULL OR phone = "") AND (tenant_id = ? OR tenant_id IS NULL)').get(customer.name, tenantId);
+        if (existing) {
+          throw new Error(`Customer with name "${customer.name}" (and no phone) already exists.`);
+        }
+      }
 
       // Insert customer using raw SQL
       const insertCustomer = sqlite.prepare(`
         INSERT INTO customers (
-          name, email, phone, address, tax_id, credit_limit, business_name, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+          tenant_id, name, email, phone, address, tax_id, credit_limit, business_name, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       `);
 
       const result = insertCustomer.run(
+        tenantId,
         customer.name,
         customer.email || null,
         customer.phone || null,
@@ -1125,7 +1152,7 @@ export const storage = {
       } as Customer;
     } catch (error) {
       console.error('Storage: Error creating customer:', error);
-      throw new Error(`Failed to create customer: ${error.message}`);
+      throw error;
     }
   },
 
@@ -1142,11 +1169,14 @@ export const storage = {
     }
   },
 
-  async deleteCustomer(id: number): Promise<boolean> {
+  async deleteCustomer(id: number, tenantId?: number): Promise<boolean> {
     try {
       // Check if customer has related records
       const relatedSales = await db.query.sales.findMany({
-        where: eq(sales.customerId, id),
+        where: and(
+          eq(sales.customerId, id),
+          tenantId ? eq(sales.tenantId, tenantId) : undefined
+        ),
         limit: 1
       });
 
