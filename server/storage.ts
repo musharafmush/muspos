@@ -1203,10 +1203,10 @@ export const storage = {
         const result = sqlite.prepare('DELETE FROM customers WHERE id = ?').run(id);
         return result.changes > 0;
       }
-    } catch (error) {
-      console.error('Error deleting customer:', error);
+    } catch (error: any) {
+      console.error('Storage: Error deleting customer:', error);
       // For foreign key constraints, provide more specific error handling
-      if (error instanceof Error && error.message.includes('FOREIGN KEY constraint failed')) {
+      if (error.message && error.message.includes('FOREIGN KEY constraint failed')) {
         throw new Error('Cannot delete customer: This customer has associated sales or loyalty records. Customer will be deactivated instead.');
       }
       throw error;
