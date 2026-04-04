@@ -3947,10 +3947,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
     } catch (error: any) {
-      console.error("Error creating customer:", error);
+      console.error("❌ Error creating customer:", error);
       res.status(500).json({
-        error: "Failed to create customer",
-        details: error.message
+        message: `Failed to create customer: ${error.message || 'Unknown database error'}`,
+        error: error.message,
+        technical: JSON.stringify(error)
       });
     }
   });
