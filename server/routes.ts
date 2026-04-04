@@ -3861,6 +3861,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Customer name is required" });
       }
 
+      const { sqlite } = await import('../db/index.js');
+      
+      // Get table structure to be safe with dynamic columns
+      const tableInfo = sqlite.prepare("PRAGMA table_info(customers)").all();
+      const columnNames = tableInfo.map((col: any) => col.name);
+
+      const customerData = {
+        name: name.trim(),
+        email: email || null,
+        phone: phone || null,
+        address: address || null,
+        tax_id: tax_id || taxNumber || null,
+        credit_limit: parseFloat(credit_limit || creditLimit || "0"),
+        business_name: business_name || businessName || null,
+        tenantId: tenantId
+      };
+
       console.log("Creating customer with processed data:", customerData);
 
       // Build the insert query dynamically
@@ -3869,17 +3886,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let values = [customerData.name];
 
       // Add optional columns only if they exist in the table and have values
-      const optionalFields = [
+      const fieldsToAdd = [
         { column: 'email', value: customerData.email },
         { column: 'phone', value: customerData.phone },
         { column: 'address', value: customerData.address },
         { column: 'tax_id', value: customerData.tax_id },
         { column: 'credit_limit', value: customerData.credit_limit },
         { column: 'business_name', value: customerData.business_name },
+        { column: 'tenant_id', value: customerData.tenantId },
         { column: 'outstanding_balance', value: 0 }
       ];
 
-      optionalFields.forEach(field => {
+      fieldsToAdd.forEach(field => {
         if (columnNames.includes(field.column)) {
           columns.push(field.column);
           placeholders.push('?');
@@ -3895,32 +3913,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Build the final query
       const insertQuery = `
-      INSERT INTO customers (${columns.join(', ')}) 
-      VALUES (${placeholders.join(', ')})
-    `;
+        INSERT INTO customers (${columns.join(', ')}) 
+        VALUES (${placeholders.map(() => '?').join(', ')})
+      `;
 
       console.log("Final insert query:", insertQuery);
-      console.log("Values to insert:", values);
-
-      const insertCustomer = sqlite.prepare(insertQuery);
-      const result = insertCustomer.run(...values);
+      
+      const result = sqlite.prepare(insertQuery).run(...values);
 
       // Get the created customer with proper field mapping
       const getCustomerQuery = `
-      SELECT 
-        id,
-        name,
-        email,
-        phone,
-        address,
-        ${columnNames.includes('tax_id') ? 'tax_id as taxId' : 'NULL as taxId'},
-        ${columnNames.includes('credit_limit') ? 'credit_limit as creditLimit' : '0 as creditLimit'},
-        ${columnNames.includes('outstanding_balance') ? 'outstanding_balance as outstandingBalance' : '0 as outstandingBalance'},
-        ${columnNames.includes('business_name') ? 'business_name as businessName' : 'NULL as businessName'},
-        ${columnNames.includes('created_at') ? 'created_at as createdAt' : 'NULL as createdAt'}
-      FROM customers 
-      WHERE id = ?
-    `;
+        SELECT 
+          id,
+          name,
+          email,
+          phone,
+          address,
+          ${columnNames.includes('tax_id') ? 'tax_id as taxId' : 'NULL as taxId'},
+          ${columnNames.includes('credit_limit') ? 'credit_limit as creditLimit' : '0 as creditLimit'},
+          ${columnNames.includes('outstanding_balance') ? 'outstanding_balance as outstandingBalance' : '0 as outstandingBalance'},
+          ${columnNames.includes('business_name') ? 'business_name as businessName' : 'NULL as businessName'},
+          ${columnNames.includes('created_at') ? 'created_at as createdAt' : 'NULL as createdAt'}
+        FROM customers 
+        WHERE id = ?
+      `;
 
       const newCustomer = sqlite.prepare(getCustomerQuery).get(result.lastInsertRowid);
 
@@ -3930,11 +3946,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Customer created successfully"
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating customer:", error);
       res.status(500).json({
         error: "Failed to create customer",
-        details: (error as any).message
+        details: error.message
       });
     }
   });
