@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const dbPath = path.join(__dirname, 'pos-data.db'); // Adjust if DB is elsewhere
+const dbPath = path.join(__dirname, 'pos-data.db');
 
 console.log('🔄 Opening database at:', dbPath);
 const db = new Database(dbPath);
@@ -39,21 +39,37 @@ try {
     console.log(`➡️ Merging "${dup.name}" (${dup.phone_grouped}) into Master ID ${masterId}...`);
     
     for (const oldId of redundantIds) {
-      // Move ALL related data to the master ID
+      // 1. Move Sales
       db.prepare('UPDATE sales SET customer_id = ? WHERE customer_id = ?').run(masterId, oldId);
       
+      // 2. Merge Loyalty Points (Handle UNIQUE constraint)
       const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(t => t.name);
       
       if (tables.includes('customer_loyalty')) {
-        db.prepare('UPDATE customer_loyalty SET customer_id = ? WHERE customer_id = ?').run(masterId, oldId);
+        const masterLoyalty = db.prepare('SELECT id, available_points FROM customer_loyalty WHERE customer_id = ?').get(masterId);
+        const oldLoyalty = db.prepare('SELECT id, available_points FROM customer_loyalty WHERE customer_id = ?').get(oldId);
+
+        if (masterLoyalty && oldLoyalty) {
+          // Combine points and delete the duplicate loyalty record
+          const totalPoints = (masterLoyalty.available_points || 0) + (oldLoyalty.available_points || 0);
+          db.prepare('UPDATE customer_loyalty SET available_points = ? WHERE id = ?').run(totalPoints, masterLoyalty.id);
+          db.prepare('DELETE FROM customer_loyalty WHERE id = ?').run(oldLoyalty.id);
+          console.log(`   - Combined loyalty points for ID ${oldId} into Master ${masterId}`);
+        } else if (oldLoyalty) {
+          // No master loyalty, move the old one to master
+          db.prepare('UPDATE customer_loyalty SET customer_id = ? WHERE id = ?').run(masterId, oldLoyalty.id);
+          console.log(`   - Moved loyalty record from ID ${oldId} to Master ${masterId}`);
+        }
       }
+
+      // 3. Move Offer Usage
       if (tables.includes('offer_usage')) {
         db.prepare('UPDATE offer_usage SET customer_id = ? WHERE customer_id = ?').run(masterId, oldId);
       }
       
-      // Delete the duplicate
+      // 4. Delete the duplicate customer
       db.prepare('DELETE FROM customers WHERE id = ?').run(oldId);
-      console.log(`   - Successfully merged ID ${oldId} -> ${masterId}`);
+      console.log(`   - Successfully deleted redundant customer ID ${oldId}`);
     }
   }
 
