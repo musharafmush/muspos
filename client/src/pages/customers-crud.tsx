@@ -236,7 +236,12 @@ export default function CustomersCRUD() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(customerPayload),
       });
-      if (!response.ok) throw new Error("Failed to create customer");
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || errorData.error || "Failed to create customer");
+      }
+
       return await response.json();
     },
     onSuccess: () => {
