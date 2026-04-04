@@ -159,8 +159,9 @@ export default function Customers() {
       const res = await apiRequest("POST", "/api/customers", customerPayload);
 
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ error: "Unknown error" }));
-        throw new Error(errorData.error || errorData.details || `HTTP ${res.status}: ${res.statusText}`);
+        const errorData = await res.json().catch(() => ({}));
+        const errorMessage = errorData.message || errorData.error || errorData.details || `HTTP ${res.status}: ${res.statusText}`;
+        throw new Error(errorMessage);
       }
 
       return await res.json();
